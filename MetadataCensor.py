@@ -105,9 +105,11 @@ def censor(htid, genresequence):
 			if not genre in options:
 				# this column is not a genre!
 				continue
-			modelpredictions[genre] = genrecolumn[htid]
+			modelpredictions[genre] = float(genrecolumn[htid])
 		predictionlist = utils.sortkeysbyvalue(modelpredictions, whethertoreverse = True)
 		modelprediction = predictionlist[0][1]
+		modelconfidence = predictionlist[0][0]
+		nextclosest = predictionlist[1][0]
 		# Take the top prediction.
 
 		# For purposes of this routine, treat biography as nonfiction:
@@ -115,10 +117,16 @@ def censor(htid, genresequence):
 			modelprediction = "non"
 
 		if maxgenre == modelprediction:
-			reported["modelagrees"] = 1
+			reported["modelagrees"] = 1 ## modelconfidence - nextclosest
+			reported["modeldisagrees"] = 0
 		if maxgenre != modelprediction:
+			## divergence = modelconfidence - modelpredictions[maxgenre]
 			reported["modeldisagrees"] = 1
+			reported["modelagrees"] = 0
 			## print(maxgenre + " ≠ " + modelprediction)
+	else:
+		reported["modelagrees"] = 0
+		reported["modeldisagrees"] = 0
 
 
 	if not couldbefiction and modelprediction == "non":

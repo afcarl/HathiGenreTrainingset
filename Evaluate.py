@@ -30,10 +30,9 @@ genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'b
 
 user = input("Which directory of predictions (genremaps or crossvalidate)? ")
 
-predictdir = "/Users/tunder/output/" + user
+predictdir = "/Volumes/TARDIS/output/" + user
 
-user = input("Which directory of ground truth (old, new, or mixed)? ")
-groundtruthdir = "/Users/tunder/Dropbox/pagedata/" + user + "training/genremaps/" 
+groundtruthdir = "/Users/tunder/Dropbox/pagedata/" + user + "/genremaps/" 
 
 groundtruthfiles = os.listdir(groundtruthdir)
 predictfiles = os.listdir(predictdir)
