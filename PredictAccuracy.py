@@ -58,7 +58,7 @@ metadatatable["bio"] = dict()
 
 counter = 0
 for afile in predictfiles:
-	if afile.startswith(".") or afile.startswith("_"):
+	if afile.startswith(".") or afile.startswith("_") or afile.startswith("prediction"):
 		continue
 
 	counter += 1
@@ -128,15 +128,15 @@ metadatatable['gap'] = gap
 
 data = pd.DataFrame(metadatatable, dtype = "float")
 data['intercept'] = 1.0
-# data = data.dropna()
+data = data.dropna()
 
 parameters = pd.Series.from_csv("/Volumes/TARDIS/output/models/ConfidenceModelParameters.csv")
 from LogisticPredict import logitpredict
 predictions = logitpredict(parameters, data)
 
-with open("/Volumes/TARDIS/output/models/results.txt", mode ="w") as f:
-	for idx, prediction in enumerate(predictions):
-		f.write(str(idx) + '\t' + data.index[idx] + '\t' + str(prediction) + '\n')
+# with open("/Volumes/TARDIS/output/models/results.txt", mode ="w") as f:
+# 	for idx, prediction in enumerate(predictions):
+# 		f.write(str(idx) + '\t' + data.index[idx] + '\t' + str(prediction) + '\n')
 
 # This will also do it more easily:
 
@@ -144,6 +144,27 @@ with open("/Volumes/TARDIS/output/models/results.txt", mode ="w") as f:
 # 	model = pickle.load(f)
 
 # otherpredictions = model.predict(data)
+
+import SonicScrewdriver as utils
+
+indices = [utils.pairtreelabel(x) for x in data.index]
+
+decorated = zip(predictions, indices)
+decorated.sort()
+sortedpredictions, sortedindices = zip(*decorated)
+
+with open("/Users/tunder/Dropbox/PythonScripts/hathimeta/ExtractedMetadata.tsv", mode = "r", encoding = "utf-8") as f:
+	filelines = f.readlines()
+
+linedict=dict()
+for line in filelines:
+	fields = line.split('\t')
+	linedict[fields[0]] = line
+
+with open("/Volumes/TARDIS/output/models/sortedcotrain.tsv", mode="w", encoding="utf-8") as f:
+	for i in range(len(sortedindices)):
+		f.write(str(sortedpredictions[i]) + '\t' + linedict[sortedindices[i]])
+
 
 
 
