@@ -10,6 +10,7 @@ import MetadataCensor
 import Coalescer
 from math import log
 import statsmodels.api as sm
+import pickle
 
 
 def pairtreelabel(htid):
@@ -277,7 +278,22 @@ print(result.summary())
 predictions = result.predict(data[train_cols])
 print(pearsonr(data['accuracy'], predictions))
 
-user = input("Continue? ")
+# print("Checking logitpredict.")
+# import LogisticPredict
+
+# homegrown = LogisticPredict.logitpredict(result.params, data[train_cols])
+# print(pearsonr(predictions, homegrown))
+
+# user = input("Dump model to pickle file? (y/n) ")
+
+# if user == "y":
+# 	with open("/Volumes/TARDIS/output/models/PredictAccuracy.p", mode = "w+b") as picklefile:
+# 		pickle.dump(result, picklefile, protocol = 3)
+
+user = input("Dump model parameters to file? (y/n) ")
+if user == "y":
+ 	result.params.to_csv("/Volumes/TARDIS/output/models/ConfidenceModelParameters.csv")
+ 	print("Saved to /Volumes/TARDIS/output/models/ConfidenceModelParameters.csv")
 
 idstoexclude = [x for x in data.index[predictions < .9]]
 

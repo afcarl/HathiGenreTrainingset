@@ -148,7 +148,7 @@ for genre, lexicon in genrelexicons.items():
 	for i in range(maxfeatures):
 		print(sortedwords[i][1])
 
-	maxfeatures = 250
+	maxfeatures = 500
 	if len(sortedwords) < maxfeatures:
 		maxfeatures = len(sortedwords)	
 
@@ -170,7 +170,7 @@ for word in wordstoadd:
 	if word not in vocabulary:
 		vocabulary.append(word)
 
-with open("/Users/tunder/Dropbox/pagedata/enlargedvocabulary.txt", mode="w", encoding="utf-8") as f:
+with open("/Users/tunder/Dropbox/pagedata/muchenlargedvocabulary.txt", mode="w", encoding="utf-8") as f:
 	for word in vocabulary:
 		f.write(word + '\n')
 

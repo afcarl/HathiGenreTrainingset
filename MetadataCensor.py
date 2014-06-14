@@ -127,6 +127,7 @@ def censor(htid, genresequence):
 	else:
 		reported["modelagrees"] = 0
 		reported["modeldisagrees"] = 0
+		modelprediction = "unknown"
 
 
 	if not couldbefiction and modelprediction == "non":
