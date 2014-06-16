@@ -2,6 +2,7 @@
 
 import sys, os
 import SonicScrewdriver as utils
+from shutil import copyfile
 
 with open("/Users/tunder/Dropbox/pagedata/activelearn/sourcefile.txt", mode="r", encoding="utf-8") as f:
 	filelines = f.readlines()
@@ -25,3 +26,7 @@ with open("/Users/tunder/Dropbox/pagedata/activelearn/learn1.arff", mode="w", en
 	for afile in files:
 		outline = utils.pairtreefile(afile) + ",0,0,0,0,0\n"
 		f.write(outline)
+		sourcepath = "/Volumes/TARDIS/work/cotrain/texts/" + utils.pairtreefile(afile) + ".norm.txt"
+		destination = "/Users/tunder/Dropbox/pagedata/activelearn/" + utils.pairtreefile(afile) + ".txt"
+		copyfile(sourcepath, destination)
+		

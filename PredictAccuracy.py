@@ -149,7 +149,7 @@ import SonicScrewdriver as utils
 
 indices = [utils.pairtreelabel(x) for x in data.index]
 
-decorated = zip(predictions, indices)
+decorated = [x for x in zip(predictions, indices)]
 decorated.sort()
 sortedpredictions, sortedindices = zip(*decorated)
 
@@ -157,13 +157,21 @@ with open("/Users/tunder/Dropbox/PythonScripts/hathimeta/ExtractedMetadata.tsv",
 	filelines = f.readlines()
 
 linedict=dict()
-for line in filelines:
+for line in filelines[1:]:
+	line = line.rstrip()
 	fields = line.split('\t')
-	linedict[fields[0]] = line
+	headlessline = '\t'.join(fields[1:])
+	linedict[fields[0]] = headlessline
 
-with open("/Volumes/TARDIS/output/models/sortedcotrain.tsv", mode="w", encoding="utf-8") as f:
-	for i in range(len(sortedindices)):
-		f.write(str(sortedpredictions[i]) + '\t' + linedict[sortedindices[i]])
+header = filelines[0].rstrip()
+headerfields = header.split('\t')
+newheading = headerfields[0] + '\t' + "accuracy" + "\t" + "\t".join(headerfields[1:]) + "\n"
+
+with open("/Volumes/TARDIS/work/cotrain/sortedcotrain.tsv", mode="w", encoding="utf-8") as f:
+	f.write(newheading)
+	# heading
+	for idx in range(len(sortedindices)):
+		f.write(sortedindices[idx] + '\t' + str(sortedpredictions[idx]) + '\t' + linedict[sortedindices[idx]] + '\n')
 
 
 

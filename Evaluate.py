@@ -29,11 +29,11 @@ genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'b
 'let': 'non', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra',
 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
 
-user = input("Which directory of predictions (genremaps or crossvalidate)? ")
+user = input("Which directory of predictions? ")
 
 predictdir = "/Volumes/TARDIS/output/" + user
 
-groundtruthdir = "/Users/tunder/Dropbox/pagedata/" + user + "/genremaps/" 
+groundtruthdir = "/Users/tunder/Dropbox/pagedata/mixedtraining/genremaps/" 
 
 groundtruthfiles = os.listdir(groundtruthdir)
 predictfiles = os.listdir(predictdir)
@@ -127,8 +127,8 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 	for symptom in symptoms:
 		metadatatable[symptom] = dict()
 	metadatatable["numberofchunks"] = dict()
-	metadatatable["fictonon"] = dict()
-	metadatatable["bio"] = dict()
+	# metadatatable["fictonon"] = dict()
+	# metadatatable["bio"] = dict()
 
 	for pfile, gtfile in matchedfilenames.items():
 		htid = gtfile[0:-4]
@@ -182,8 +182,8 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 		for key, value in metadataconfirmation.items():
 			metadatatable[key][htid] = value
 		metadatatable["numberofchunks"][htid] = log(numberofdistinctsequences + 1)
-		metadatatable["fictonon"][htid] = transitioncount
-		metadatatable["bio"][htid] = biocount / len(roughlist)
+		# metadatatable["fictonon"][htid] = transitioncount
+		# metadatatable["bio"][htid] = biocount / len(roughlist)
 		# This is significant. We don't want to overpenalize long books, but there is
 		# a correlation between the number of predicted genre shifts and inaccuracy.
 		# So we take the log.
