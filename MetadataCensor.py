@@ -53,6 +53,9 @@ def censor(htid, genresequence):
 
 		for info in genreinfo:
 
+			if info == "Biography" or info == "Autobiography":
+				couldbefiction = False
+
 			if info == "biog?" and maxgenre == "non":
 				reported["weakconfirmation"] = 1
 			if info == "biog?" and maxgenre != "non":
@@ -70,13 +73,11 @@ def censor(htid, genresequence):
 
 			if info == "Biography" and maxgenre == "non":
 				reported["strongconfirmation"] = 1
-				couldbefiction = False
 			if info == "Biography" and maxgenre != "non":
 				reported["strongdenial"] = 1
 
 			if info == "Autobiography" and maxgenre == "non":
 				reported["strongconfirmation"] = 1
-				couldbefiction = False
 			if info == "Autobiography" and maxgenre != "non":
 				reported["strongdenial"] = 1
 
@@ -130,7 +131,7 @@ def censor(htid, genresequence):
 		modelprediction = "unknown"
 
 
-	if not couldbefiction and modelprediction == "non":
+	if not couldbefiction:
 		
 		numberofpages = len(genresequence)
 		for i in range(numberofpages):
