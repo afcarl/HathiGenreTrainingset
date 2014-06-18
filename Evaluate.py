@@ -6,12 +6,11 @@ import numpy as np
 import pandas as pd
 from scipy.stats.stats import pearsonr
 import SonicScrewdriver as utils
-import MetadataCensor
+import MetadataCascades as cascades
 import Coalescer
 from math import log
 import statsmodels.api as sm
 import pickle
-
 
 def pairtreelabel(htid):
     ''' Given a clean htid, returns a dirty one that will match
@@ -23,10 +22,16 @@ def pairtreelabel(htid):
 
     return htid  
 
+# genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio',
+# 'toc': 'front', 'title': 'front', 'bookp': 'front',
+# 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 
+# 'let': 'non', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra',
+# 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
+
 genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio',
 'toc': 'front', 'title': 'front', 'bookp': 'front',
-'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 
-'let': 'non', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra',
+ 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 
+'let': 'bio', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra',
 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
 
 user = input("Which directory of predictions? ")
@@ -38,10 +43,46 @@ groundtruthdir = "/Users/tunder/Dropbox/pagedata/mixedtraining/genremaps/"
 groundtruthfiles = os.listdir(groundtruthdir)
 predictfiles = os.listdir(predictdir)
 
+thefictiondir = input("Fiction dir? ")
+if thefictiondir != "n":
+	thefictiondir = "/Volumes/TARDIS/output/" + thefictiondir
+
+thepoedir = input("Poetry dir? ")
+if thepoedir != "n":
+	thepoedir = "/Volumes/TARDIS/output/" + thepoedir
+
+user = input("Count words? ")
+if user == "y":
+	countwords = True
+else:
+	countwords = False
+
+if countwords:
+	filewordcounts = dict()
+	with open("/Users/tunder/Dropbox/pagedata/pagelevelwordcounts.tsv", mode="r", encoding="utf-8") as f:
+		filelines = f.readlines()
+
+	for line in filelines[1:]:
+		line = line.rstrip()
+		fields = line.split('\t')
+		htid = fields[0]
+		pagenum = int(fields[1])
+		count = int(fields[2])
+
+		if htid in filewordcounts:
+			filewordcounts[htid].append((pagenum, count))
+		else:
+			filewordcounts[htid] = [(pagenum, count)]
+
+	for key, value in filewordcounts.items():
+		value.sort()
+		# This just makes sure tuples are sorted in pagenum order.
+else:
+	filewordcounts = dict()
+
 # The base list here is produced by predictfiles
 # because obvs we don't care about ground truth
 # that we can't map to a prediction.
-
 # Our goal in the next loop is to produce such a mapping.
 
 matchedfilenames = dict()
@@ -61,7 +102,15 @@ for filename in predictfiles:
 
 # We have identified filenames. Now define functions.
 
-def compare_two_lists(truelist, predicted):
+def genresareequal(truegenre, predictedgenre):
+	if truegenre == predictedgenre:
+		return True
+	elif (truegenre == "non" or truegenre == "trv" or truegenre == "bio") and (predictedgenre == "non" or predictedgenre == "trv" or predictedgenre == "bio"):
+		return True
+	else:
+		return False
+
+def compare_two_lists(truelist, predicted, wordsperpage, whethertocountwords):
 	global genretranslations
 	assert(len(truelist) == len(predicted))
 
@@ -75,16 +124,21 @@ def compare_two_lists(truelist, predicted):
 		if truegenre in genretranslations:
 			truegenre = genretranslations[truegenre]
 
-		utils.addtodict(truegenre, 1, totaltruegenre)
+		if whethertocountwords:
+			increment = wordsperpage[index]
+		else:
+			increment = 1
+
+		utils.addtodict(truegenre, increment, totaltruegenre)
 
 		predictedgenre = predicted[index]
 
-		if truegenre == predictedgenre or (truegenre == "bio" and predictedgenre == "non") or (truegenre == "non" and predictedgenre == "bio"):
-			utils.addtodict(truegenre, 1, correctbygenre)
-			accurate += 1
+		if genresareequal(truegenre, predictedgenre):
+			utils.addtodict(truegenre, increment, correctbygenre)
+			accurate += increment
 		else:
-			utils.addtodict((truegenre, predictedgenre), 1, errorsbygenre)
-			inaccurate += 1
+			utils.addtodict((truegenre, predictedgenre), increment, errorsbygenre)
+			inaccurate += increment
 
 	return totaltruegenre, correctbygenre, errorsbygenre, accurate, inaccurate
 
@@ -97,7 +151,7 @@ def add_dictionary(masterdict, dicttoadd):
 	return masterdict
 
 def evaluate_filelist(matchedfilenames, excludedhtidlist):
-	global predictdir, groundtruthdir
+	global predictdir, groundtruthdir, filewordcounts
 
 	smoothederrors = dict()
 	unsmoothederrors = dict()
@@ -140,6 +194,7 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 
 		smoothlist = list()
 		roughlist = list()
+		detailedprobabilities = list()
 
 		pfilepath = os.path.join(predictdir, pfile)
 		with open(pfilepath,encoding = "utf-8") as f:
@@ -150,6 +205,11 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 			fields = line.split('\t')
 			roughlist.append(fields[1])
 			smoothlist.append(fields[2])
+			detailedprobabilities.append("\t".join(fields[5:]))
+
+			# The prediction file has this format:
+			# pagenumber roughgenre smoothgenre many ... detailed predictions
+			# fields 3 and 4 will be predictions for dummy genres "begin" and "end"
 
 		correctlist = list()
 
@@ -164,6 +224,12 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 
 		assert len(correctlist) == len(roughlist)
 
+		if countwords:
+			tuplelist = filewordcounts[htid]
+			wordsperpage = [x[1] for x in tuplelist]
+		else:
+			wordsperpage = list()
+
 		# Experiment.
 		oldgenre = ""
 		transitioncount = 0
@@ -175,9 +241,43 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 				transitioncount += 1
 			oldgenre = agenre
 
-		coalescedlist, numberofdistinctsequences = Coalescer.coalesce(smoothlist)
-		
-		coalescedlist, metadataconfirmation = MetadataCensor.censor(htid, coalescedlist)
+		fictionfilepath = os.path.join(thefictiondir, pfile)
+		poetryfilepath = os.path.join(thepoedir, pfile)
+
+		mainmodel = cascades.read_probabilities(detailedprobabilities)
+
+		mostlydrapoe, probablybiography, probablyfiction = cascades.choose_cascade(htid, smoothlist)
+		# This function returns three boolean values which will help us choose a specialized model
+		# to correct current predictions. This scheme is called "cascading classification," thus
+		# we are "choosing a cascade."
+
+		# For a cascade to be invoked, one and only one of the values must be True. Otherwise
+		# we have a volume that cannot be slotted reliably into a category.
+
+		numberoftrues = sum([mostlydrapoe, probablybiography, probablyfiction])
+
+		if numberoftrues == 1:
+			if mostlydrapoe and thepoedir != "n":
+				adjustedlist, mainmodel = cascades.drapoe_cascade(smoothlist, mainmodel, poetryfilepath)
+			elif probablybiography:
+				adjustedlist = cascades.biography_cascade(smoothlist)
+			elif probablyfiction and thefictiondir != "n":
+				adjustedlist, mainmodel = cascades.fiction_cascade(smoothlist, mainmodel, fictionfilepath)
+			else:
+				adjustedlist = smoothlist
+		else:
+			adjustedlist = smoothlist
+
+		coalescedlist, numberofdistinctsequences = Coalescer.coalesce(adjustedlist)
+		# This function simplifies our prediction by looking for cases where a small
+		# number of pages in genre X are surrounded by larger numbers of pages in
+		# genre Y. This is often an error, and in cases where it's not technically
+		# an error it's a scale of variation we usually want to ignore. However,
+		# we will also record detailed probabilities for users who *don't* want to
+		# ignore these
+
+		metadataconfirmation = cascades.metadata_check(htid, coalescedlist)
+		#  Now that we have adjusted
 
 		for key, value in metadataconfirmation.items():
 			metadatatable[key][htid] = value
@@ -188,7 +288,7 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 		# a correlation between the number of predicted genre shifts and inaccuracy.
 		# So we take the log.
 
-		totaltruegenre, correctbygenre, errorsbygenre, accurate, inaccurate = compare_two_lists(correctlist, smoothlist)
+		totaltruegenre, correctbygenre, errorsbygenre, accurate, inaccurate = compare_two_lists(correctlist, smoothlist, wordsperpage, countwords)
 		add_dictionary(smoothederrors, errorsbygenre)
 		add_dictionary(smoothedcorrect, correctbygenre)
 		add_dictionary(totalgt, totaltruegenre)
@@ -196,13 +296,13 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 		smoothaccurate += accurate
 		smoothnotaccurate += inaccurate
 
-		totaltruegenre, correctbygenre, errorsbygenre, accurate, inaccurate = compare_two_lists(correctlist, roughlist)
+		totaltruegenre, correctbygenre, errorsbygenre, accurate, inaccurate = compare_two_lists(correctlist, roughlist, wordsperpage, countwords)
 		add_dictionary(unsmoothederrors, errorsbygenre)
 		add_dictionary(unsmoothedcorrect, correctbygenre)
 		roughaccurate += accurate
 		roughnotaccurate += inaccurate
 
-		totaltruegenre, correctbygenre, errorsbygenre, accurate, inaccurate = compare_two_lists(correctlist, coalescedlist)
+		totaltruegenre, correctbygenre, errorsbygenre, accurate, inaccurate = compare_two_lists(correctlist, coalescedlist, wordsperpage, countwords)
 		add_dictionary(coalescederrors, errorsbygenre)
 		add_dictionary(coalescedcorrect, correctbygenre)
 		coalescedaccurate += accurate
@@ -224,23 +324,23 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 			continue
 
 		print()
-		print("UNSMOOTHED PREDICTION, " + str(count) + " | " + genre)
-
-		print("Correctly identified: " + str(unsmoothedcorrect.get(genre, 0) / count))
-		print("Errors: ")
-
-		for key, errorcount in unsmoothederrors.items():
-			gt, predict = key
-			if gt == genre:
-				print(predict + ": " + str(errorcount) + "   " + str (errorcount/count))
-
-		print()
 		print("SMOOTHED PREDICTION, " + str(count) + " | " + genre)
 
 		print("Correctly identified: " + str(smoothedcorrect.get(genre, 0) / count))
 		print("Errors: ")
 
 		for key, errorcount in smoothederrors.items():
+			gt, predict = key
+			if gt == genre:
+				print(predict + ": " + str(errorcount) + "   " + str (errorcount/count))
+
+		print()
+		print("COALESCED PREDICTION, " + str(count) + " | " + genre)
+
+		print("Correctly identified: " + str(coalescedcorrect.get(genre, 0) / count))
+		print("Errors: ")
+
+		for key, errorcount in coalescederrors.items():
 			gt, smoothed = key
 			if gt == genre:
 				print(smoothed + ": " + str(errorcount) + "   " + str (errorcount/count))

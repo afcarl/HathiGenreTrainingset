@@ -64,13 +64,17 @@ def effectively_equal(genrea, genreb):
 		return True
 	elif genrea == "bio" and genreb == "non":
 		return True
+	elif genrea == "trv" and (genreb == "bio" or genreb == "non"):
+		return True
+	elif (genrea == "bio" or genrea == "non") and genreb == "trv":
+		return True
 	else:
 		return False
 
 def not_suspicious(genrea, genreb):
 	'''We take the view that small numbers of front and non pages
 	should be permitted to persist next to each other, because this
-	is often the case.'''
+	is often the case. Also, small numbers of front pages can occur anywhere.'''
 
 	if genrea == "front" and (genreb == "bio" or genreb == "non"):
 		return False
@@ -88,6 +92,13 @@ def find_consensus(genrea, sizea, genreb, sizeb):
 		return genreb
 	else:
 		return genreb
+
+def closematches(genrea, genreb):
+	allthesame = ["fic", "bio", "non"]
+	if genrea in allthesame and genreb in allthesame:
+		return True
+	else:
+		return False
 
 def coalesce(listofgenres):
 
@@ -123,7 +134,7 @@ def coalesce(listofgenres):
 
 			disproportion = (envelopingtotal / innertotal)
 
-			if innertotal < 3 and  disproportion >= 3:
+			if innertotal < 3 and disproportion >= 3 or (disproportion >= 2 and closematches(first.genretype, second.genretype)):
 				decoratedtriad = (disproportion, triad)
 				ratedtriads.append(decoratedtriad)
 				disproportions.append(disproportion)

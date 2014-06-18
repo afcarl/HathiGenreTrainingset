@@ -1,5 +1,5 @@
 # SonicScrewdriver.py
-# Version June 8, 2014
+# Version June 18, 2014
 
 def addtodict(word, count, lexicon):
 	'''Adds an integer (count) to dictionary (lexicon) under
@@ -20,6 +20,17 @@ def sortkeysbyvalue(lexicon, whethertoreverse = False):
 
 	tuplelist = sorted(tuplelist, reverse = whethertoreverse)
 	return tuplelist
+
+def sortvaluesbykey(lexicon):
+    '''Accepts a dictionary of numeric keys, such as page numbers, and
+    returns a tuplelist of key-value pairs sorted by the key.'''
+
+    tuplelist = list()
+    for key, value in lexicon.items():
+        tuplelist.append((key, value))
+
+    tuplelist = sorted(tuplelist)
+    return tuplelist
 
 ## REVISED utility
 ## that reads my standard tab-separated metadata table,
