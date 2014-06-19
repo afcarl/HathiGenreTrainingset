@@ -54,6 +54,7 @@ class Chunk:
 		self.chunksize = self.endpage - self.startpage
 
 def effectively_equal(genrea, genreb):
+	alsothesame = ["back", "index"]
 	if genrea == genreb:
 		return True
 	elif genrea == "fic" and genreb == "bio":
@@ -67,6 +68,8 @@ def effectively_equal(genrea, genreb):
 	elif genrea == "trv" and (genreb == "bio" or genreb == "non"):
 		return True
 	elif (genrea == "bio" or genrea == "non") and genreb == "trv":
+		return True
+	elif genrea in alsothesame and genreb in alsothesame:
 		return True
 	else:
 		return False
@@ -95,7 +98,10 @@ def find_consensus(genrea, sizea, genreb, sizeb):
 
 def closematches(genrea, genreb):
 	allthesame = ["fic", "bio", "non"]
+	alsothesame = ["back", "index"]
 	if genrea in allthesame and genreb in allthesame:
+		return True
+	elif genrea in alsothesame and genreb in alsothesame:
 		return True
 	else:
 		return False

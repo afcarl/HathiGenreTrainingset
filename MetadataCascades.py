@@ -203,7 +203,7 @@ def fiction_cascade(currentpredictions, mainmodel, fictiondir):
 
 			thispage = keywithmaxval(merged)
 			if thispage != currentpredictions[i] and thispage != "" and currentpredictions[i] == "non":
-				print(thispage + " <= " + currentpredictions[i])
+				pass
 			else:
 				thispage = currentpredictions[i]
 
@@ -260,7 +260,7 @@ def drapoe_cascade(currentpredictions, mainmodel, drapoepath):
 
 			thispage = keywithmaxval(merged)
 			if thispage != currentpredictions[i] and thispage != "" and currentpredictions[i] == "non":
-				print(thispage + " <=poe= " + currentpredictions[i])
+				pass
 			else:
 				thispage = currentpredictions[i]
 

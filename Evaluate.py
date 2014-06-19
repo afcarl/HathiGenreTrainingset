@@ -51,11 +51,17 @@ thepoedir = input("Poetry dir? ")
 if thepoedir != "n":
 	thepoedir = "/Volumes/TARDIS/output/" + thepoedir
 
-user = input("Count words? ")
+user = input("Count words (y/n)? ")
 if user == "y":
 	countwords = True
 else:
 	countwords = False
+
+user = input("Separate index (y/n)?")
+if user == "y":
+	genretranslations["index"] = "index"
+	genretranslations["gloss"] = "index"
+	genretranslations["bibli"] = "index"
 
 if countwords:
 	filewordcounts = dict()
@@ -103,9 +109,13 @@ for filename in predictfiles:
 # We have identified filenames. Now define functions.
 
 def genresareequal(truegenre, predictedgenre):
+	arethesame = ["bio", "trv", "aut", "non"]
+	alsothesame = ["back", "index", "front", "ads"]
 	if truegenre == predictedgenre:
 		return True
-	elif (truegenre == "non" or truegenre == "trv" or truegenre == "bio") and (predictedgenre == "non" or predictedgenre == "trv" or predictedgenre == "bio"):
+	elif truegenre in arethesame and predictedgenre in arethesame:
+		return True
+	elif truegenre in alsothesame and predictedgenre in alsothesame:
 		return True
 	else:
 		return False
@@ -295,6 +305,10 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 		# Only do this for one comparison
 		smoothaccurate += accurate
 		smoothnotaccurate += inaccurate
+
+		if ("index", "non") in errorsbygenre:
+			if errorsbygenre[("index", "non")] > 2:
+				print("Index fail: " + htid + " " + str(errorsbygenre[("index", "non")]))
 
 		totaltruegenre, correctbygenre, errorsbygenre, accurate, inaccurate = compare_two_lists(correctlist, roughlist, wordsperpage, countwords)
 		add_dictionary(unsmoothederrors, errorsbygenre)
