@@ -11,26 +11,27 @@ import Coalescer
 from math import log
 import statsmodels.api as sm
 import pickle
+import ConfusionMatrix
 
 def pairtreelabel(htid):
     ''' Given a clean htid, returns a dirty one that will match
     the metadata table.'''
-    
+
     if '+' in htid or '=' in htid:
         htid = htid.replace('+',':')
         htid = htid.replace('=','/')
 
-    return htid  
+    return htid
 
 # genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio',
 # 'toc': 'front', 'title': 'front', 'bookp': 'front',
-# 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 
+# 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non',
 # 'let': 'non', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra',
 # 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
 
 genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio',
 'toc': 'front', 'title': 'front', 'bookp': 'front',
- 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 
+ 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non',
 'let': 'bio', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra',
 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
 
@@ -38,7 +39,7 @@ user = input("Which directory of predictions? ")
 
 predictdir = "/Volumes/TARDIS/output/" + user
 
-groundtruthdir = "/Users/tunder/Dropbox/pagedata/mixedtraining/genremaps/" 
+groundtruthdir = "/Users/tunder/Dropbox/pagedata/mixedtraining/genremaps/"
 
 groundtruthfiles = os.listdir(groundtruthdir)
 predictfiles = os.listdir(predictdir)
@@ -96,7 +97,7 @@ matchedfilenames = dict()
 for filename in predictfiles:
 	if ".predict" not in filename:
 		continue
-	
+
 	htid = filename[0:-8]
 
 	groundtruthversion = htid + ".map"
@@ -215,7 +216,8 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 			fields = line.split('\t')
 			roughlist.append(fields[1])
 			smoothlist.append(fields[2])
-			detailedprobabilities.append("\t".join(fields[5:]))
+			if len(fields) > 5:
+				detailedprobabilities.append("\t".join(fields[5:]))
 
 			# The prediction file has this format:
 			# pagenumber roughgenre smoothgenre many ... detailed predictions
@@ -251,52 +253,57 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 				transitioncount += 1
 			oldgenre = agenre
 
-		fictionfilepath = os.path.join(thefictiondir, pfile)
-		poetryfilepath = os.path.join(thepoedir, pfile)
+		if thepoedir != "n" and  thefictiondir != "n":
 
-		mainmodel = cascades.read_probabilities(detailedprobabilities)
+			fictionfilepath = os.path.join(thefictiondir, pfile)
+			poetryfilepath = os.path.join(thepoedir, pfile)
 
-		mostlydrapoe, probablybiography, probablyfiction = cascades.choose_cascade(htid, smoothlist)
-		# This function returns three boolean values which will help us choose a specialized model
-		# to correct current predictions. This scheme is called "cascading classification," thus
-		# we are "choosing a cascade."
+			mainmodel = cascades.read_probabilities(detailedprobabilities)
 
-		# For a cascade to be invoked, one and only one of the values must be True. Otherwise
-		# we have a volume that cannot be slotted reliably into a category.
+			mostlydrapoe, probablybiography, probablyfiction = cascades.choose_cascade(htid, smoothlist)
+			# This function returns three boolean values which will help us choose a specialized model
+			# to correct current predictions. This scheme is called "cascading classification," thus
+			# we are "choosing a cascade."
 
-		numberoftrues = sum([mostlydrapoe, probablybiography, probablyfiction])
+			# For a cascade to be invoked, one and only one of the values must be True. Otherwise
+			# we have a volume that cannot be slotted reliably into a category.
 
-		if numberoftrues == 1:
-			if mostlydrapoe and thepoedir != "n":
-				adjustedlist, mainmodel = cascades.drapoe_cascade(smoothlist, mainmodel, poetryfilepath)
-			elif probablybiography:
-				adjustedlist = cascades.biography_cascade(smoothlist)
-			elif probablyfiction and thefictiondir != "n":
-				adjustedlist, mainmodel = cascades.fiction_cascade(smoothlist, mainmodel, fictionfilepath)
+			numberoftrues = sum([mostlydrapoe, probablybiography, probablyfiction])
+
+			if numberoftrues == 1:
+				if mostlydrapoe and thepoedir != "n":
+					adjustedlist, mainmodel = cascades.drapoe_cascade(smoothlist, mainmodel, poetryfilepath)
+				elif probablybiography:
+					adjustedlist = cascades.biography_cascade(smoothlist)
+				elif probablyfiction and thefictiondir != "n":
+					adjustedlist, mainmodel = cascades.fiction_cascade(smoothlist, mainmodel, fictionfilepath)
+				else:
+					adjustedlist = smoothlist
 			else:
 				adjustedlist = smoothlist
+
+			coalescedlist, numberofdistinctsequences = Coalescer.coalesce(adjustedlist)
+			# This function simplifies our prediction by looking for cases where a small
+			# number of pages in genre X are surrounded by larger numbers of pages in
+			# genre Y. This is often an error, and in cases where it's not technically
+			# an error it's a scale of variation we usually want to ignore. However,
+			# we will also record detailed probabilities for users who *don't* want to
+			# ignore these
+
+			metadataconfirmation = cascades.metadata_check(htid, coalescedlist)
+			#  Now that we have adjusted
+
+			for key, value in metadataconfirmation.items():
+				metadatatable[key][htid] = value
+			metadatatable["numberofchunks"][htid] = log(numberofdistinctsequences + 1)
+			# metadatatable["fictonon"][htid] = transitioncount
+			# metadatatable["bio"][htid] = biocount / len(roughlist)
+			# This is significant. We don't want to overpenalize long books, but there is
+			# a correlation between the number of predicted genre shifts and inaccuracy.
+			# So we take the log.
 		else:
-			adjustedlist = smoothlist
-
-		coalescedlist, numberofdistinctsequences = Coalescer.coalesce(adjustedlist)
-		# This function simplifies our prediction by looking for cases where a small
-		# number of pages in genre X are surrounded by larger numbers of pages in
-		# genre Y. This is often an error, and in cases where it's not technically
-		# an error it's a scale of variation we usually want to ignore. However,
-		# we will also record detailed probabilities for users who *don't* want to
-		# ignore these
-
-		metadataconfirmation = cascades.metadata_check(htid, coalescedlist)
-		#  Now that we have adjusted
-
-		for key, value in metadataconfirmation.items():
-			metadatatable[key][htid] = value
-		metadatatable["numberofchunks"][htid] = log(numberofdistinctsequences + 1)
-		# metadatatable["fictonon"][htid] = transitioncount
-		# metadatatable["bio"][htid] = biocount / len(roughlist)
-		# This is significant. We don't want to overpenalize long books, but there is
-		# a correlation between the number of predicted genre shifts and inaccuracy.
-		# So we take the log.
+			coalescedlist = smoothlist
+			# This is if we're skipping the whole coalescing process.
 
 		totaltruegenre, correctbygenre, errorsbygenre, accurate, inaccurate = compare_two_lists(correctlist, smoothlist, wordsperpage, countwords)
 		add_dictionary(smoothederrors, errorsbygenre)
@@ -363,6 +370,8 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 	smoothaccuracy = smoothaccurate / (smoothaccurate + smoothnotaccurate)
 	coalaccuracy = coalescedaccurate / (coalescedaccurate + coalescednotaccurate)
 
+	confusion = ConfusionMatrix.confusion_matrix(coalescedcorrect, coalescederrors)
+
 	return metadatatable, accuracies, roughaccuracy, smoothaccuracy, coalaccuracy
 
 metadatatable, accuracies, roughaccuracy, smoothaccuracy, coalaccuracy = evaluate_filelist(matchedfilenames, list())
@@ -382,7 +391,7 @@ metadatatable['maxprob']= metadata['maxprob']
 metadatatable['gap'] = metadata['gap']
 metadatatable['accuracy'] = accuracies
 
-data = pd.DataFrame(metadatatable, dtype = "float") 
+data = pd.DataFrame(metadatatable, dtype = "float")
 
 data['intercept'] = 1.0
 train_cols = data.columns[1:]
@@ -424,7 +433,7 @@ print(coalaccuracy)
 user = input("Continue? ")
 
 for filename, accuracy in accuracies.items():
-	
+
 	print(accuracy, filename)
 
 	truesequence = truesequences[filename]

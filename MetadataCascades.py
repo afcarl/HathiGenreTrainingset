@@ -10,386 +10,395 @@ modelindices, modelcolumns, modeldata = utils.readtsv("/Users/tunder/Dropbox/Pyt
 options = ["non", "bio", "poe", "dra", "fic"]
 
 def keywithmaxval(dictionary):
-	maxval = 0
-	maxkey = ""
+    maxval = 0
+    maxkey = ""
 
-	for key, value in dictionary.items():
-		if value > maxval:
-			maxval = value
-			maxkey = key
+    for key, value in dictionary.items():
+        if value > maxval:
+            maxval = value
+            maxkey = key
 
-	return maxkey
+    return maxkey
 
 def sequence_to_counts(genresequence):
-	'''Converts a sequence of page-level predictions to
-	a dictionary of counts reflecting the number of pages
-	assigned to each genre. Also reports the largest genre.'''
+    '''Converts a sequence of page-level predictions to
+    a dictionary of counts reflecting the number of pages
+    assigned to each genre. Also reports the largest genre.'''
 
-	genrecounts = dict()
-	genrecounts['fic'] = 0
-	genrecounts['poe'] = 0
-	genrecounts['dra'] = 0
-	genrecounts['non'] = 0
+    genrecounts = dict()
+    genrecounts['fic'] = 0
+    genrecounts['poe'] = 0
+    genrecounts['dra'] = 0
+    genrecounts['non'] = 0
 
-	for page in genresequence:
-		indexas = page
+    for page in genresequence:
+        indexas = page
 
-		# For this purpose, we treat biography and indexes as equivalent to nonfiction.
-		if page == "bio" or page == "index" or page == "back" or page == "trv":
-			indexas = "non"
+        # For this purpose, we treat biography and indexes as equivalent to nonfiction.
+        if page == "bio" or page == "index" or page == "back" or page == "trv":
+            indexas = "non"
 
-		utils.addtodict(indexas, 1, genrecounts)
+        utils.addtodict(indexas, 1, genrecounts)
 
-	# Convert the dictionary of counts into a sorted list, and take the max.
-	genretuples = utils.sortkeysbyvalue(genrecounts, whethertoreverse = True)
-	maxgenre = genretuples[0][1]
+    # Convert the dictionary of counts into a sorted list, and take the max.
+    genretuples = utils.sortkeysbyvalue(genrecounts, whethertoreverse = True)
+    maxgenre = genretuples[0][1]
 
-	return genrecounts, maxgenre
+    return genrecounts, maxgenre
 
 def choose_cascade(htid, pagepredictions):
-	'''Reads metadata about this volume and uses it, combined with
-	the thrust of page-level predictions, to decide what other models, 
-	if any, should be used to correct/adjust current predictions.
+    '''Reads metadata about this volume and uses it, combined with
+    the thrust of page-level predictions, to decide what other models,
+    if any, should be used to correct/adjust current predictions.
 
-	Returns three boolean flags, indicating whether the volume is
-	1) Mostly drama and poetry.
-	2) Probably biography.
-	3) Probably fiction.
+    Returns three boolean flags, indicating whether the volume is
+    1) Mostly drama and poetry.
+    2) Probably biography.
+    3) Probably fiction.
 
-	It's entirely conceivable that more than one of these flags could be true 
-	at the same time. In that case no cascade will be applied, because we have
-	inconsistent/untrustworthy evidence.'''
+    It's entirely conceivable that more than one of these flags could be true
+    at the same time. In that case no cascade will be applied, because we have
+    inconsistent/untrustworthy evidence.'''
 
-	global rowindices, columns, metadata
+    global rowindices, columns, metadata
 
-	genresequence = [x for x in pagepredictions]
-	# Make a defensive copy of current page predictions
+    genresequence = [x for x in pagepredictions]
+    # Make a defensive copy of current page predictions
 
-	# Then count genres.
-	genrecounts, maxgenre = sequence_to_counts(genresequence)
+    # Then count genres.
+    genrecounts, maxgenre = sequence_to_counts(genresequence)
 
-	# Use those counts to decide whether the volume is more than 50% drama and/or poetry.
-	if (genrecounts['dra'] + genrecounts['poe']) > (len(genresequence) / 2):
-		mostlydrapoe = True
-	else:
-		mostlydrapoe = False
+    # Use those counts to decide whether the volume is more than 50% drama and/or poetry.
+    if (genrecounts['dra'] + genrecounts['poe']) > (len(genresequence) / 2):
+        mostlydrapoe = True
+    else:
+        mostlydrapoe = False
 
-	# Two other flags will be governed by existing metadata.
+    # Two other flags will be governed by existing metadata.
 
-	probablybiography = False
-	probablyfiction = False
+    probablybiography = False
+    probablyfiction = False
 
-	htid = utils.pairtreelabel(htid)
-	# convert the clean pairtree filename into a dirty pairtree label for metadata matching
+    htid = utils.pairtreelabel(htid)
+    # convert the clean pairtree filename into a dirty pairtree label for metadata matching
 
-	if htid not in rowindices:
-		# We have no metadata for this volume.
-		print("Volume missing from ExtractedMetadata.tsv: " + htid)
+    if htid not in rowindices:
+        # We have no metadata for this volume.
+        print("Volume missing from ExtractedMetadata.tsv: " + htid)
 
-	else:
-		genrestring = metadata["genres"][htid]
-		genreinfo = genrestring.split(";")
-		# It's a semicolon-delimited list of items.
+    else:
+        genrestring = metadata["genres"][htid]
+        genreinfo = genrestring.split(";")
+        # It's a semicolon-delimited list of items.
 
-		for info in genreinfo:
+        for info in genreinfo:
 
-			if info == "Biography" or info == "Autobiography":
-				probablybiography = True
+            if info == "Biography" or info == "Autobiography":
+                probablybiography = True
 
-			if info == "Fiction" or info == "Novel":
-				probablyfiction = True
+            if info == "Fiction" or info == "Novel":
+                probablyfiction = True
 
-			if (info == "Poetry" or info == "Poems"):
-				mostlydrapoe = True
+            if (info == "Poetry" or info == "Poems"):
+                mostlydrapoe = True
 
-			if (info == "Drama" or info == "Tragedies" or info == "Comedies"):
-				mostlydrapoe = True
+            if (info == "Drama" or info == "Tragedies" or info == "Comedies"):
+                mostlydrapoe = True
 
-	return mostlydrapoe, probablybiography, probablyfiction
+        title = metadata["title"][htid].lower()
+        titlewords = title.split()
+
+        if "poems" in titlewords or "ballads" in titlewords:
+            mostlydrapoe = True
+
+        if "comedy" in titlewords or "tragedy" in titlewords or "plays" in titlewords:
+            mostlydrapoe = True
+
+    return mostlydrapoe, probablybiography, probablyfiction
 
 def biography_cascade(pagepredictions):
-	'''This cascade is a simple rule-based solution, based on the
-	observation that -- although volumes of fiction often include
-	biographical intros -- volumes of biography rarely include fiction.
-	So if the metadata says this is a biography or autobiography, pages
-	classified as fiction are probably in error.'''
+    '''This cascade is a simple rule-based solution, based on the
+    observation that -- although volumes of fiction often include
+    biographical intros -- volumes of biography rarely include fiction.
+    So if the metadata says this is a biography or autobiography, pages
+    classified as fiction are probably in error.'''
 
-	genresequence = [x for x in pagepredictions]
-	# Make a defensive copy of current page predictions
-		
-	numberofpages = len(genresequence)
-	for i in range(numberofpages):
-		if genresequence[i] == "fic":
-			genresequence[i] = "bio"
+    genresequence = [x for x in pagepredictions]
+    # Make a defensive copy of current page predictions
 
-	return genresequence
+    numberofpages = len(genresequence)
+    for i in range(numberofpages):
+        if genresequence[i] == "fic":
+            genresequence[i] = "bio"
+
+    return genresequence
 
 def read_probabilities(stringlist):
-	'''Interprets a sequence of lines as a sequence of
-	dictionaries mapping genres to probabilities.'''
+    '''Interprets a sequence of lines as a sequence of
+    dictionaries mapping genres to probabilities.'''
 
-	pagesequence = list()
+    pagesequence = list()
 
-	for aline in stringlist:
-		aline = aline.rstrip()
-		fields = aline.split("\t")
-		probdict = dict()
+    for aline in stringlist:
+        aline = aline.rstrip()
+        fields = aline.split("\t")
+        probdict = dict()
 
-		for field in fields:
-			parts = field.split("::")
-			genre = parts[0]
+        for field in fields:
+            parts = field.split("::")
+            genre = parts[0]
 
-			try:
-				probability = float(parts[1])
-			except:
-				probability = 0
-				print("Float conversion error!")
+            try:
+                probability = float(parts[1])
+            except:
+                probability = 0
+                print("Float conversion error!")
 
-			probdict[genre] = probability
+            probdict[genre] = probability
 
-		# for current purposes we treat nonfiction and biography
-		# as equivalent, so we take the maximum of the two
-		# probabilities 
+        # for current purposes we treat nonfiction and biography
+        # as equivalent, so we take the maximum of the two
+        # probabilities
 
-		if "non" in probdict and "bio" in probdict:
-			probdict["non"] = max(probdict["non"], probdict["bio"])
-			probdict.pop("bio")
+        if "non" in probdict and "bio" in probdict:
+            probdict["non"] = max(probdict["non"], probdict["bio"])
+            probdict.pop("bio")
 
-		pagesequence.append(probdict)
+        pagesequence.append(probdict)
 
-	return pagesequence
+    return pagesequence
 
 def fiction_cascade(currentpredictions, mainmodel, fictiondir):
-	'''If metadata indicates the volume is probably fiction, we
-	compare the predictions of the main model to predictions made by
-	a model trained mostly on fiction -- and favor the latter.
+    '''If metadata indicates the volume is probably fiction, we
+    compare the predictions of the main model to predictions made by
+    a model trained mostly on fiction -- and favor the latter.
 
-	Returns a list of predictions (genres deemed most likely for each page)
-	as well as a "mergedmodel," a list of dictionaries corresponding to pages,
-	and reporting the merged probability of each genre for that page.'''
+    Returns a list of predictions (genres deemed most likely for each page)
+    as well as a "mergedmodel," a list of dictionaries corresponding to pages,
+    and reporting the merged probability of each genre for that page.'''
 
-	try:
-		fiction_probabilities = list()
-		with open(fictiondir, mode = "r", encoding = "utf-8") as f:
-			filelines = f.readlines()
-		for line in filelines:
-			line = line.rstrip()
-			fields = line.split('\t')
-			fiction_probabilities.append("\t".join(fields[5:]))
+    try:
+        fiction_probabilities = list()
+        with open(fictiondir, mode = "r", encoding = "utf-8") as f:
+            filelines = f.readlines()
+        for line in filelines:
+            line = line.rstrip()
+            fields = line.split('\t')
+            fiction_probabilities.append("\t".join(fields[5:]))
 
-		fictionmodel = read_probabilities(fiction_probabilities)
-		assert len(fictionmodel) == len(mainmodel)
-		numpages = len(fictionmodel)
+        fictionmodel = read_probabilities(fiction_probabilities)
+        assert len(fictionmodel) == len(mainmodel)
+        numpages = len(fictionmodel)
 
-		mergedpredictions = list()
-		mergedmodel = list()
+        mergedpredictions = list()
+        mergedmodel = list()
 
-		for i in range(numpages):
-			ficprobs = fictionmodel[i]
-			mainprobs = mainmodel[i]
-			merged = dict()
-			# merged will hold the new probabilities for each genre
-			# on this page
+        for i in range(numpages):
+            ficprobs = fictionmodel[i]
+            mainprobs = mainmodel[i]
+            merged = dict()
+            # merged will hold the new probabilities for each genre
+            # on this page
 
-			for key, ficvalue in ficprobs.items():
-				if key in mainprobs:
-					newvalue = (0.75 * ficvalue) + (0.25 * mainprobs[key])
-					# This is the heart of the process. The coefficients here
-					# are currently arbitrary.
-				else:
-					newvalue = ficvalue
+            for key, ficvalue in ficprobs.items():
+                if key in mainprobs:
+                    newvalue = (0.75 * ficvalue) + (0.25 * mainprobs[key])
+                    # This is the heart of the process. The coefficients here
+                    # are currently arbitrary.
+                else:
+                    newvalue = ficvalue
 
-				merged[key] = newvalue
+                merged[key] = newvalue
 
-			thispage = keywithmaxval(merged)
-			if thispage != currentpredictions[i] and thispage != "" and currentpredictions[i] == "non":
-				pass
-			else:
-				thispage = currentpredictions[i]
+            thispage = keywithmaxval(merged)
+            if thispage != currentpredictions[i] and thispage != "" and currentpredictions[i] == "non":
+                pass
+            else:
+                thispage = currentpredictions[i]
 
-			mergedpredictions.append(thispage)
-			mergedmodel.append(merged)
+            mergedpredictions.append(thispage)
+            mergedmodel.append(merged)
 
-	except:
-		mergedpredictions = currentpredictions
-		mergedmodel = mainmodel
+    except:
+        mergedpredictions = currentpredictions
+        mergedmodel = mainmodel
 
-	return mergedpredictions, mergedmodel
+    return mergedpredictions, mergedmodel
 
 def drapoe_cascade(currentpredictions, mainmodel, drapoepath):
-	'''If metadata indicates the volume is probably drama or poetry, we
-	compare the predictions of the main model to predictions made by
-	a model trained mostly on drama and poetry -- and favor the latter.
+    '''If metadata indicates the volume is probably drama or poetry, we
+    compare the predictions of the main model to predictions made by
+    a model trained mostly on drama and poetry -- and favor the latter.
 
-	Returns a list of predictions (genres deemed most likely for each page)
-	as well as a "mergedmodel," a list of dictionaries corresponding to pages,
-	and reporting the merged probability of each genre for that page.'''
-	allowables = {"non", "bio"}
-	try:
-		poetry_probabilities = list()
-		with open(drapoepath, mode = "r", encoding = "utf-8") as f:
-			filelines = f.readlines()
-		for line in filelines:
-			line = line.rstrip()
-			fields = line.split('\t')
-			poetry_probabilities.append("\t".join(fields[5:]))
+    Returns a list of predictions (genres deemed most likely for each page)
+    as well as a "mergedmodel," a list of dictionaries corresponding to pages,
+    and reporting the merged probability of each genre for that page.'''
+    allowables = {"non", "bio"}
+    try:
+        poetry_probabilities = list()
+        with open(drapoepath, mode = "r", encoding = "utf-8") as f:
+            filelines = f.readlines()
+        for line in filelines:
+            line = line.rstrip()
+            fields = line.split('\t')
+            poetry_probabilities.append("\t".join(fields[5:]))
 
-		poetrymodel = read_probabilities(poetry_probabilities)
-		assert len(poetrymodel) == len(mainmodel)
-		numpages = len(poetrymodel)
+        poetrymodel = read_probabilities(poetry_probabilities)
+        assert len(poetrymodel) == len(mainmodel)
+        numpages = len(poetrymodel)
 
-		mergedpredictions = list()
-		mergedmodel = list()
+        mergedpredictions = list()
+        mergedmodel = list()
 
-		for i in range(numpages):
-			poeprobs = poetrymodel[i]
-			mainprobs = mainmodel[i]
-			merged = dict()
-			# merged will hold the new probabilities for each genre
-			# on this page
+        for i in range(numpages):
+            poeprobs = poetrymodel[i]
+            mainprobs = mainmodel[i]
+            merged = dict()
+            # merged will hold the new probabilities for each genre
+            # on this page
 
-			for key, poevalue in poeprobs.items():
-				if key in mainprobs:
-					newvalue = (0.5 * poevalue) + (0.5 * mainprobs[key])
-					# This is the heart of the process. The coefficients here
-					# are currently arbitrary.
-				else:
-					newvalue = poevalue
+            for key, poevalue in poeprobs.items():
+                if key in mainprobs:
+                    newvalue = (0.5 * poevalue) + (0.5 * mainprobs[key])
+                    # This is the heart of the process. The coefficients here
+                    # are currently arbitrary.
+                else:
+                    newvalue = poevalue
 
-				merged[key] = newvalue
+                merged[key] = newvalue
 
-			thispage = keywithmaxval(merged)
-			if thispage != currentpredictions[i] and thispage != "" and currentpredictions[i] == "non":
-				pass
-			else:
-				thispage = currentpredictions[i]
+            thispage = keywithmaxval(merged)
+            if thispage != currentpredictions[i] and thispage != "" and currentpredictions[i] == "non":
+                pass
+            else:
+                thispage = currentpredictions[i]
 
-			mergedpredictions.append(thispage)
-			mergedmodel.append(merged)
+            mergedpredictions.append(thispage)
+            mergedmodel.append(merged)
 
-	except:
-		mergedpredictions = currentpredictions
-		mergedmodel = mainmodel
-		print("Skipped drapoe.")
+    except:
+        mergedpredictions = currentpredictions
+        mergedmodel = mainmodel
+        print("Skipped drapoe.")
 
-	return mergedpredictions, mergedmodel
+    return mergedpredictions, mergedmodel
 
 def metadata_check(htid, inputsequence):
-	global options, rowindices, columns, metadata, modelindices, modelcolumns, modeldata
-	'''Assesses whether previous metadata tend to deny or confirm the
-	thrust of page-level genre predictions. For this purpose we use both
-	genre codes extracted from the MARC record and the predictions of a volume-
-	level probabilistic model.
+    global options, rowindices, columns, metadata, modelindices, modelcolumns, modeldata
+    '''Assesses whether previous metadata tend to deny or confirm the
+    thrust of page-level genre predictions. For this purpose we use both
+    genre codes extracted from the MARC record and the predictions of a volume-
+    level probabilistic model.
 
-	Returns two parameters: 1) a dictionary of "confirmations" that indicate
-	whether metadata aligns with page-level predictions in six specific ways.
-	2) The "maxgenre" or genre most commonly predicted at the page level.'''
+    Returns two parameters: 1) a dictionary of "confirmations" that indicate
+    whether metadata aligns with page-level predictions in six specific ways.
+    2) The "maxgenre" or genre most commonly predicted at the page level.'''
 
-	genresequence = [x for x in inputsequence]
-	# make a defensive copy of incoming parameter
+    genresequence = [x for x in inputsequence]
+    # make a defensive copy of incoming parameter
 
-	htid = utils.pairtreelabel(htid)
-	# convert the htid into a dirty pairtree label for metadata matching
+    htid = utils.pairtreelabel(htid)
+    # convert the htid into a dirty pairtree label for metadata matching
 
-	# Create a dictionary with entries for all possible conditions, initially set negative.
-	symptoms = ["weakconfirmation", "weakdenial", "strongconfirmation", "strongdenial", "modelagrees", "modeldisagrees"]
-	# The first four of these symptoms reflect metadata extracted from the MARC record. Weakconfirmation and
-	# weakdenial are based on flags extracted from controlfield 008 which I find are not very reliable as guides.
-	# Strongconfirmation and strongdenial are based on strings extracted from other fields that are more
-	# specific and reliable as indications of genre. Modelagrees and modeldisagrees reflect the alignment of
-	# page-level predictions with an earlier volume-level model of the corpus.
-	
-	confirmations = dict()
-	for symptom in symptoms:
-		confirmations[symptom] = 0
+    # Create a dictionary with entries for all possible conditions, initially set negative.
+    symptoms = ["weakconfirmation", "weakdenial", "strongconfirmation", "strongdenial", "modelagrees", "modeldisagrees"]
+    # The first four of these symptoms reflect metadata extracted from the MARC record. Weakconfirmation and
+    # weakdenial are based on flags extracted from controlfield 008 which I find are not very reliable as guides.
+    # Strongconfirmation and strongdenial are based on strings extracted from other fields that are more
+    # specific and reliable as indications of genre. Modelagrees and modeldisagrees reflect the alignment of
+    # page-level predictions with an earlier volume-level model of the corpus.
 
-	genrecounts, maxgenre = sequence_to_counts(genresequence)
+    confirmations = dict()
+    for symptom in symptoms:
+        confirmations[symptom] = 0
 
-	if htid not in rowindices and htid not in modelindices:
-		return confirmations
+    genrecounts, maxgenre = sequence_to_counts(genresequence)
 
-	if htid in rowindices:
+    if htid not in rowindices and htid not in modelindices:
+        return confirmations
 
-		genrestring = metadata["genres"][htid]
-		genreinfo = genrestring.split(";")
-		# It's a semicolon-delimited list of items.
+    if htid in rowindices:
 
-		for info in genreinfo:
+        genrestring = metadata["genres"][htid]
+        genreinfo = genrestring.split(";")
+        # It's a semicolon-delimited list of items.
 
-			# if info == "biog?" and maxgenre == "non":
-			# 	confirmations["weakconfirmation"] = 1
-			# if info == "biog?" and maxgenre != "non":
-			# 	confirmations["weakdenial"] = 1
+        for info in genreinfo:
 
-			if info == "Not fiction" and maxgenre == "non":
-				confirmations["weakconfirmation"] = 1
-			if info == "Not fiction" and maxgenre == "fic":
-				confirmations["weakdenial"] = 1
+            # if info == "biog?" and maxgenre == "non":
+            #     confirmations["weakconfirmation"] = 1
+            # if info == "biog?" and maxgenre != "non":
+            #     confirmations["weakdenial"] = 1
 
-			if (info == "Fiction" or info == "Novel") and maxgenre == "fic":
-				confirmations["strongconfirmation"] = 1
-			if (info == "Fiction" or info == "Novel") and maxgenre != "fic":
-				confirmations["strongdenial"] = 1
+            if info == "Not fiction" and maxgenre == "non":
+                confirmations["weakconfirmation"] = 1
+            if info == "Not fiction" and maxgenre == "fic":
+                confirmations["weakdenial"] = 1
 
-			if info == "Biography" and maxgenre == "non":
-				confirmations["strongconfirmation"] = 1
-			if info == "Biography" and maxgenre != "non":
-				confirmations["strongdenial"] = 1
+            if (info == "Fiction" or info == "Novel") and maxgenre == "fic":
+                confirmations["strongconfirmation"] = 1
+            if (info == "Fiction" or info == "Novel") and maxgenre != "fic":
+                confirmations["strongdenial"] = 1
 
-			if info == "Autobiography" and maxgenre == "non":
-				confirmations["strongconfirmation"] = 1
-			if info == "Autobiography" and maxgenre != "non":
-				confirmations["strongdenial"] = 1
+            if info == "Biography" and maxgenre == "non":
+                confirmations["strongconfirmation"] = 1
+            if info == "Biography" and maxgenre != "non":
+                confirmations["strongdenial"] = 1
 
-			if (info == "Poetry" or info == "Poems") and maxgenre == "poe":
-				confirmations["strongconfirmation"] = 1
-			if (info == "Poetry" or info == "Poems") and maxgenre != "poe":
-				confirmations["strongdenial"] = 1
+            if info == "Autobiography" and maxgenre == "non":
+                confirmations["strongconfirmation"] = 1
+            if info == "Autobiography" and maxgenre != "non":
+                confirmations["strongdenial"] = 1
 
-			if (info == "Drama" or info == "Tragedies" or info == "Comedies") and maxgenre == "dra":
-				confirmations["strongconfirmation"] = 1
-			if (info == "Drama" or info == "Tragedies" or info == "Comedies") and maxgenre != "dra":
-				confirmations["strongdenial"] = 1
+            if (info == "Poetry" or info == "Poems") and maxgenre == "poe":
+                confirmations["strongconfirmation"] = 1
+            if (info == "Poetry" or info == "Poems") and maxgenre != "poe":
+                confirmations["strongdenial"] = 1
 
-			if (info == "Catalog" or info == "Dictionary" or info=="Bibliographies") and maxgenre == "non":
-				confirmations["strongconfirmation"] = 1
-				couldbefiction = False
-			if (info == "Catalog" or info == "Dictionary" or info=="Bibliographies") and maxgenre != "non":
-				confirmations["strongdenial"] = 1
-	else:
-		print("Skipped.")
+            if (info == "Drama" or info == "Tragedies" or info == "Comedies") and maxgenre == "dra":
+                confirmations["strongconfirmation"] = 1
+            if (info == "Drama" or info == "Tragedies" or info == "Comedies") and maxgenre != "dra":
+                confirmations["strongdenial"] = 1
 
-	if htid in modelindices:
+            if (info == "Catalog" or info == "Dictionary" or info=="Bibliographies") and maxgenre == "non":
+                confirmations["strongconfirmation"] = 1
+                couldbefiction = False
+            if (info == "Catalog" or info == "Dictionary" or info=="Bibliographies") and maxgenre != "non":
+                confirmations["strongdenial"] = 1
+    else:
+        print("Skipped.")
 
-		modelpredictions = dict()
-		for genre, genrecolumn in modeldata.items():
-			if not genre in options:
-				# this column is not a genre!
-				continue
-			modelpredictions[genre] = float(genrecolumn[htid])
-		predictionlist = utils.sortkeysbyvalue(modelpredictions, whethertoreverse = True)
-		modelprediction = predictionlist[0][1]
-		modelconfidence = predictionlist[0][0]
-		nextclosest = predictionlist[1][0]
-		# Take the top prediction.
+    if htid in modelindices:
 
-		# For purposes of this routine, treat biography as nonfiction:
-		if modelprediction == "bio":
-			modelprediction = "non"
+        modelpredictions = dict()
+        for genre, genrecolumn in modeldata.items():
+            if not genre in options:
+                # this column is not a genre!
+                continue
+            modelpredictions[genre] = float(genrecolumn[htid])
+        predictionlist = utils.sortkeysbyvalue(modelpredictions, whethertoreverse = True)
+        modelprediction = predictionlist[0][1]
+        modelconfidence = predictionlist[0][0]
+        nextclosest = predictionlist[1][0]
+        # Take the top prediction.
 
-		if maxgenre == modelprediction:
-			confirmations["modelagrees"] = 1 ## modelconfidence - nextclosest
-			confirmations["modeldisagrees"] = 0
-		if maxgenre != modelprediction:
-			## divergence = modelconfidence - modelpredictions[maxgenre]
-			confirmations["modeldisagrees"] = 1
-			confirmations["modelagrees"] = 0
-			## print(maxgenre + " ≠ " + modelprediction)
-	else:
-		confirmations["modelagrees"] = 0
-		confirmations["modeldisagrees"] = 0
-		modelprediction = "unknown"
+        # For purposes of this routine, treat biography as nonfiction:
+        if modelprediction == "bio":
+            modelprediction = "non"
 
-	return confirmations
+        if maxgenre == modelprediction:
+            confirmations["modelagrees"] = 1 ## modelconfidence - nextclosest
+            confirmations["modeldisagrees"] = 0
+        if maxgenre != modelprediction:
+            ## divergence = modelconfidence - modelpredictions[maxgenre]
+            confirmations["modeldisagrees"] = 1
+            confirmations["modelagrees"] = 0
+            ## print(maxgenre + " ≠ " + modelprediction)
+    else:
+        confirmations["modelagrees"] = 0
+        confirmations["modeldisagrees"] = 0
+        modelprediction = "unknown"
+
+    return confirmations
 
 
