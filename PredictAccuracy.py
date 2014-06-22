@@ -1,14 +1,14 @@
 # This is based on Evaluate.py, but stripped down because
 # we don't have any ground truth to compare. We aren't evaluating
 # model performance; we're just predicting the accuracy of our
-# predictions on unknown volumes. 
+# predictions on unknown volumes.
 
 import os
 import numpy as np
 import pandas as pd
 from scipy.stats.stats import pearsonr
 import SonicScrewdriver as utils
-import MetadataCensor
+import MetadataCascades
 import Coalescer
 from math import log
 import statsmodels.api as sm
@@ -17,18 +17,14 @@ import pickle
 def pairtreelabel(htid):
     ''' Given a clean htid, returns a dirty one that will match
     the metadata table.'''
-    
+
     if '+' in htid or '=' in htid:
         htid = htid.replace('+',':')
         htid = htid.replace('=','/')
 
-    return htid  
+    return htid
 
-genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio',
-'toc': 'front', 'title': 'front', 'bookp': 'front',
-'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 
-'let': 'non', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra',
-'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
+genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio', 'toc': 'front', 'title': 'front', 'bookp': 'front', 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 'let': 'non', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra', 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
 
 predictdir = input("Directory to assess? ")
 
@@ -95,8 +91,8 @@ for afile in predictfiles:
 		oldgenre = agenre
 
 	coalescedlist, numberofdistinctsequences = Coalescer.coalesce(smoothlist)
-	
-	coalescedlist, metadataconfirmation = MetadataCensor.censor(htid, coalescedlist)
+
+	metadataconfirmation = MetadataCascades.metadata_check(htid, coalescedlist)
 
 	for key, value in metadataconfirmation.items():
 		metadatatable[key][htid] = value
@@ -167,7 +163,7 @@ header = filelines[0].rstrip()
 headerfields = header.split('\t')
 newheading = headerfields[0] + '\t' + "accuracy" + "\t" + "\t".join(headerfields[1:]) + "\n"
 
-with open("/Volumes/TARDIS/work/cotrain/sortedcotrain.tsv", mode="w", encoding="utf-8") as f:
+with open("/Users/tunder/Dropbox/pagedata/interrater/MachineConfidence.tsv", mode="w", encoding="utf-8") as f:
 	f.write(newheading)
 	# heading
 	for idx in range(len(sortedindices)):

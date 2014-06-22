@@ -29,11 +29,7 @@ def pairtreelabel(htid):
 # 'let': 'non', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra',
 # 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
 
-genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio',
-'toc': 'front', 'title': 'front', 'bookp': 'front',
- 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non',
-'let': 'bio', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra',
-'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
+genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio', 'toc': 'front', 'title': 'front', 'bookp': 'front', 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 'let': 'bio', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra', 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
 
 user = input("Which directory of predictions? ")
 
@@ -303,7 +299,7 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 			# So we take the log.
 		else:
 			coalescedlist = smoothlist
-			# This is if we're skipping the whole coalescing process.
+			# This is if we're skipping the whole coalescing process.len(idstoexclude)
 
 		totaltruegenre, correctbygenre, errorsbygenre, accurate, inaccurate = compare_two_lists(correctlist, smoothlist, wordsperpage, countwords)
 		add_dictionary(smoothederrors, errorsbygenre)
@@ -383,6 +379,12 @@ print("SMOOTHED MICROACCURACY:")
 print(smoothaccuracy)
 print("COALESCED MICROACCURACY:")
 print(coalaccuracy)
+
+with open("/Users/tunder/Dropbox/pagedata/interrater/ActualAccuracies.tsv", mode = "w", encoding="utf-8") as f:
+	f.write("htid\taccuracy\n")
+	for key, value in accuracies.items():
+		outline = key + "\t" + str(value) + "\n"
+		f.write(outline)
 
 metadatapath = os.path.join(predictdir, "predictionMetadata.tsv")
 rowindices, columns, metadata = utils.readtsv(metadatapath)
