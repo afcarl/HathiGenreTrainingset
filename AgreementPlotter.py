@@ -5,7 +5,7 @@ import SonicScrewdriver as utils
 import pandas as pd
 from scipy.stats.stats import pearsonr
 
-indices, columns, agreement = utils.readtsv("/Users/tunder/Dropbox/pagedata/interrater/HumanAgreement.tsv")
+indices, columns, agreement = utils.readtsv("/Users/tunder/Dropbox/pagedata/interrater/HumanDissensus.tsv")
 
 indices2, columns2, confidence = utils.readtsv("/Users/tunder/Dropbox/pagedata/interrater/MachineConfidence.tsv")
 

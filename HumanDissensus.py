@@ -1,6 +1,7 @@
-# Interrater.py
+# HumanDissensus.py
 # Takes training data produced by five different people and
-# measures their agreement with each other.
+# measures their agreement with the consensus model that was
+# produced by collating their data.
 
 from zipfile import ZipFile
 import sys, os
@@ -68,9 +69,14 @@ for folder in folderlist:
 						else:
 							volumesread[htid] = [(folder, thismap)]
 
-def comparelists(firstmap, secondmap, genremistakes):
-	assert len(firstmap) == len(secondmap)
-	length = len(firstmap)
+def comparelists(firstmap, secondmap, genremistakes, wordcounts):
+	if len(firstmap) > len(secondmap):
+		length = len(secondmap)
+	elif len(firstmap) == len(secondmap):
+		length = len(firstmap)
+	else:
+		print("Error, Will Robinson. There are occasions where the consensus version is shorter but no valid reason for it to be longer.")
+
 	divergence = 0.0
 
 	for i in range(length):
@@ -83,7 +89,7 @@ def comparelists(firstmap, secondmap, genremistakes):
 		if generalizedfirst == generalizedsecond:
 			pass
 		else:
-			divergence += 1
+			divergence += wordcounts[i]
 			addgenre(generalizedfirst, genremistakes)
 			addgenre(generalizedsecond, genremistakes)
 
@@ -94,7 +100,53 @@ volumepercents = dict()
 overallcomparisons = 0
 overallagreement = 0
 
+countwords = True
+
+if countwords:
+	filewordcounts = dict()
+	with open("/Users/tunder/Dropbox/pagedata/pagelevelwordcounts.tsv", mode="r", encoding="utf-8") as f:
+		filelines = f.readlines()
+
+	for line in filelines[1:]:
+		line = line.rstrip()
+		fields = line.split('\t')
+		htid = fields[0]
+		pagenum = int(fields[1])
+		count = int(fields[2])
+
+		if htid in filewordcounts:
+			filewordcounts[htid].append((pagenum, count))
+		else:
+			filewordcounts[htid] = [(pagenum, count)]
+
+	for key, value in filewordcounts.items():
+		value.sort()
+		# This just makes sure tuples are sorted in pagenum order.
+else:
+	filewordcounts = dict()
+
 badvols = ["njp.32101072911116", "nyp.33433069339749", "hvd.hwjsgk"]
+consensuspath = "/Users/tunder/Dropbox/pagedata/mixedtraining/genremaps/"
+consensusversions = dict()
+
+for htid, listoftuples in volumesread.items():
+	if htid in badvols:
+		continue
+	filepath = consensuspath + htid + ".map"
+
+	try:
+		with open(filepath, mode="r", encoding="utf-8") as f:
+			filelines = f.readlines()
+	except:
+		continue
+
+	thismap = list()
+	for line in filelines:
+		line = line.rstrip()
+		fields = line.split("\t")
+		thismap.append(fields[1])
+
+	consensusversions[htid] = thismap
 
 for key, listoftuples in volumesread.items():
 
@@ -110,34 +162,24 @@ for key, listoftuples in volumesread.items():
 	if nummaps == 1:
 		continue
 
-	# That's admittedly opaque, but it's the length of the map part of
-	# the first maptuple in listoftuples.
+	# We don't check agreement when there was only one rater, because
+	# it's a foregone conclusion that one person will agree with herself.
 
-	if nummaps == 2:
-		graphlinks = 1
+	if countwords:
+		wordcounts = [x[1] for x in filewordcounts[htid]]
 	else:
-		graphlinks = 3
+		wordcounts = [1] * len(genrelistB)
 
-	potentialcomparisons = graphlinks * lengthofvolume
+	potentialcomparisons = nummaps * sum(wordcounts)
 	totaldivergence = 0
-	sanitycheck = 0
 
-	alreadychecked = list()
 	for reading in listoftuples:
 		readera = reading[0]
-		for anotherreading in listoftuples[1:]:
-			readerb = anotherreading[0]
-			alreadychecked.append((readerb, readera))
-			if readera == readerb or (readera, readerb) in alreadychecked:
-				continue
-			else:
-				genrelistA = reading[1]
-				genrelistB = anotherreading[1]
-				divergence = comparelists(genrelistA, genrelistB, genremistakes)
-				totaldivergence += divergence
-				sanitycheck += 1
+		genrelistA = reading[1]
+		genrelistB = consensusversions[htid]
 
-	assert graphlinks == sanitycheck
+		divergence = comparelists(genrelistA, genrelistB, genremistakes, wordcounts)
+		totaldivergence += divergence
 
 	agreement = (potentialcomparisons - totaldivergence)
 	agreementpercent = agreement / potentialcomparisons
@@ -147,7 +189,7 @@ for key, listoftuples in volumesread.items():
 
 print("Average human agreement: " + str(overallagreement / overallcomparisons))
 
-with open("/Users/tunder/Dropbox/pagedata/interrater/HumanAgreement.tsv", mode="w", encoding = "utf-8") as f:
+with open("/Users/tunder/Dropbox/pagedata/interrater/HumanDissensus.tsv", mode="w", encoding = "utf-8") as f:
 	f.write("htid\tagreement\n")
 	for key, value in volumepercents.items():
 		outline = utils.pairtreelabel(key) + "\t" + str(value) + "\n"
