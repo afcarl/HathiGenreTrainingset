@@ -18,15 +18,35 @@ def addgenre(agenre, thedictionary):
 
 	return thedictionary
 
+# translator = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'non', 'bio': 'non', 'toc': 'front', 'title': 'front', 'bookp': 'front', 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 'let': 'non', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra', 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
+
 translator = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'non', 'bio': 'non', 'toc': 'front', 'title': 'front', 'bookp': 'front', 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 'let': 'non', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra', 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
+
+secondtranslate = {'front': 'paratext', 'back': 'paratext', 'ads': 'paratext'}
 
 def translate(agenre):
 	global translator
 
 	if agenre in translator:
-		return translator[agenre]
+		agenre = translator[agenre]
+
+	return agenre
+
+def effectively_equal(genreA, genreB):
+	global secondtranslate
+
+	if genreA in secondtranslate:
+		genreA = secondtranslate[genreA]
+
+	if genreB in secondtranslate:
+		genreB = secondtranslate[genreB]
+
+	if genreA == genreB:
+		return True
 	else:
-		return agenre
+		return False
+
+
 
 genrecounts = dict()
 
@@ -69,7 +89,7 @@ for folder in folderlist:
 						else:
 							volumesread[htid] = [(folder, thismap)]
 
-def comparelists(firstmap, secondmap, genremistakes, wordcounts):
+def comparelists(firstmap, secondmap, genremistakes, correctbygenre, wordcounts):
 	if len(firstmap) > len(secondmap):
 		length = len(secondmap)
 	elif len(firstmap) == len(secondmap):
@@ -80,22 +100,20 @@ def comparelists(firstmap, secondmap, genremistakes, wordcounts):
 	divergence = 0.0
 
 	for i in range(length):
-		if firstmap[i] == secondmap[i]:
-			continue
 
 		generalizedfirst = translate(firstmap[i])
 		generalizedsecond = translate(secondmap[i])
 
-		if generalizedfirst == generalizedsecond:
-			pass
+		if effectively_equal(generalizedfirst, generalizedsecond):
+			utils.addtodict(generalizedsecond, wordcounts[i], correctbygenre)
 		else:
 			divergence += wordcounts[i]
-			addgenre(generalizedfirst, genremistakes)
-			addgenre(generalizedsecond, genremistakes)
+			utils.addtodict((generalizedsecond, generalizedfirst), wordcounts[i], genremistakes)
 
 	return divergence
 
 genremistakes = dict()
+correctbygenre = dict()
 volumepercents = dict()
 overallcomparisons = 0
 overallagreement = 0
@@ -129,6 +147,8 @@ badvols = ["njp.32101072911116", "nyp.33433069339749", "hvd.hwjsgk"]
 consensuspath = "/Users/tunder/Dropbox/pagedata/mixedtraining/genremaps/"
 consensusversions = dict()
 
+ficcounter = 0
+
 for htid, listoftuples in volumesread.items():
 	if htid in badvols:
 		continue
@@ -144,16 +164,20 @@ for htid, listoftuples in volumesread.items():
 	for line in filelines:
 		line = line.rstrip()
 		fields = line.split("\t")
-		thismap.append(fields[1])
+		genre = translate(fields[1])
+		thismap.append(genre)
+		if genre == "fic":
+			ficcounter += 1
 
 	consensusversions[htid] = thismap
 
 for key, listoftuples in volumesread.items():
 
 	htid = key
-
 	if htid in badvols:
 		continue
+
+	truegenres = consensusversions[htid]
 
 	nummaps = len(listoftuples)
 
@@ -168,17 +192,16 @@ for key, listoftuples in volumesread.items():
 	if countwords:
 		wordcounts = [x[1] for x in filewordcounts[htid]]
 	else:
-		wordcounts = [1] * len(genrelistB)
+		wordcounts = [1] * lengthofvolume
 
 	potentialcomparisons = nummaps * sum(wordcounts)
 	totaldivergence = 0
 
 	for reading in listoftuples:
 		readera = reading[0]
-		genrelistA = reading[1]
-		genrelistB = consensusversions[htid]
+		predictedgenres = reading[1]
 
-		divergence = comparelists(genrelistA, genrelistB, genremistakes, wordcounts)
+		divergence = comparelists(predictedgenres, truegenres, genremistakes, correctbygenre, wordcounts)
 		totaldivergence += divergence
 
 	agreement = (potentialcomparisons - totaldivergence)
@@ -195,7 +218,8 @@ with open("/Users/tunder/Dropbox/pagedata/interrater/HumanDissensus.tsv", mode="
 		outline = utils.pairtreelabel(key) + "\t" + str(value) + "\n"
 		f.write(outline)
 
-
+import ConfusionMatrix
+ConfusionMatrix.confusion_matrix(correctbygenre, genremistakes)
 
 
 

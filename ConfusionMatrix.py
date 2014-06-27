@@ -23,6 +23,7 @@ def confusion_matrix(correctbygenre, errorsbygenre):
 	assignto["bio"] = "non"
 	assignto["front"] = "paratext"
 	assignto["back"] = "paratext"
+	assignto["ads"] = "paratext"
 
 	predicted = dict()
 	for genre in assignto.values():
@@ -50,6 +51,16 @@ def confusion_matrix(correctbygenre, errorsbygenre):
 	newcolumn = list()
 	columngenres = [x for x in confusion.columns]
 
+	accurate = 0
+	total = 0
+	for genre in columngenres:
+		accurate += confusion.loc[genre, genre]
+		total += confusion[genre].sum()
+
+	print()
+	print("Microaveraged: " + str(accurate/total))
+
+
 	for genre in columngenres:
 		precision = (confusion.loc[genre, genre] / confusion[genre].sum()) * 100
 		newrow[genre] = {'precision': precision}
@@ -62,6 +73,12 @@ def confusion_matrix(correctbygenre, errorsbygenre):
 	pandas.options.display.float_format = '{:10.1f}'.format
 	print()
 	print(confusion)
+
+	for genre in columngenres:
+		precision = confusion.loc["precision", genre]
+		recall = confusion.loc[genre, "recall"]
+		F1 = 2 * ((precision * recall) / (precision + recall))
+		print(genre + " \tF1 = " + str(F1))
 
 
 def print_pandaframe(pandaframe):
