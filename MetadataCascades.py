@@ -68,16 +68,27 @@ def choose_cascade(htid, pagepredictions):
     # Then count genres.
     genrecounts, maxgenre = sequence_to_counts(genresequence)
 
+    if genrecounts['fic'] > 0 and genrecounts['fic'] < (len(genresequence) / 3):
+        notfiction = True
+    else:
+        notfiction = False
+
+    if genrecounts['dra'] > 0 and (genrecounts['non'] > len(genresequence) / 2 or genrecounts['fic'] > len(genresequence) / 2 or genrecounts['poe'] > len(genresequence) * .9):
+        notdrama = True
+    else:
+        notdrama = False
+
+
     # Use those counts to decide whether the volume is more than 50% drama and/or poetry.
     if (genrecounts['dra'] + genrecounts['poe']) > (len(genresequence) / 2):
         mostlydrapoe = True
     else:
         mostlydrapoe = False
 
-    # Two other flags will be governed by existing metadata.
+    # One other flag will be governed by existing metadata.
 
-    probablybiography = False
     probablyfiction = False
+    probablybiography = False
 
     htid = utils.pairtreelabel(htid)
     # convert the clean pairtree filename into a dirty pairtree label for metadata matching
@@ -114,7 +125,7 @@ def choose_cascade(htid, pagepredictions):
         if "comedy" in titlewords or "tragedy" in titlewords or "plays" in titlewords:
             mostlydrapoe = True
 
-    return mostlydrapoe, probablybiography, probablyfiction
+    return mostlydrapoe, probablybiography, probablyfiction, notdrama, notfiction
 
 def biography_cascade(pagepredictions):
     '''This cascade is a simple rule-based solution, based on the
@@ -132,6 +143,43 @@ def biography_cascade(pagepredictions):
             genresequence[i] = "bio"
 
     return genresequence
+
+def otherthandrama(currentpredictions, mainmodel):
+    '''we've decided the drama predictions are unlikely;
+    what's next most likely?'''
+
+    assert len(currentpredictions) == len(mainmodel)
+
+    for i in range(len(currentpredictions)):
+        if currentpredictions[i] == 'dra':
+            genremax = 0
+            maxgenre = ""
+            for key, value in mainmodel[i].items():
+                mainmodel[i]["dra"] = 0
+                if value > genremax:
+                    genremax = value
+                    maxgenre = key
+            currentpredictions[i] = maxgenre
+
+    return currentpredictions
+
+def otherthanfiction(currentpredictions, mainmodel):
+    '''we've decided the fiction predictions are unlikely;
+    what's next most likely?'''
+
+    assert len(currentpredictions) == len(mainmodel)
+
+    for i in range(len(currentpredictions)):
+        if currentpredictions[i] == 'fic':
+            genremax = 0
+            maxgenre = ""
+            for key, value in mainmodel[i].items():
+                if key != "fic" and value > genremax:
+                    genremax = value
+                    maxgenre = key
+            currentpredictions[i] = maxgenre
+
+    return currentpredictions
 
 def read_probabilities(stringlist):
     '''Interprets a sequence of lines as a sequence of
@@ -187,8 +235,10 @@ def fiction_cascade(currentpredictions, mainmodel, fictiondir):
             fiction_probabilities.append("\t".join(fields[5:]))
 
         fictionmodel = read_probabilities(fiction_probabilities)
-        assert len(fictionmodel) == len(mainmodel)
+
         numpages = len(fictionmodel)
+        if numpages > len(mainmodel):
+            numpages = len(mainmodel)
 
         mergedpredictions = list()
         mergedmodel = list()
@@ -244,8 +294,10 @@ def drapoe_cascade(currentpredictions, mainmodel, drapoepath):
             poetry_probabilities.append("\t".join(fields[5:]))
 
         poetrymodel = read_probabilities(poetry_probabilities)
-        assert len(poetrymodel) == len(mainmodel)
+
         numpages = len(poetrymodel)
+        if numpages > len(mainmodel):
+            numpages = len(mainmodel)
 
         mergedpredictions = list()
         mergedmodel = list()
