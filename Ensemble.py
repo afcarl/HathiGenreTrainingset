@@ -69,7 +69,7 @@ else:
 
 # compare directories
 
-listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9"]
+listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9", "bydate"]
 
 predictroot = "/Volumes/TARDIS/output/"
 firstdir = predictroot + listofmodels[0] + "/"
@@ -140,12 +140,15 @@ for filename in validfiles:
 				pageprobs.append(newdict)
 
 		smoothlist = list()
+		roughlist = list()
 		for i in range(len(filelines)):
 			line = filelines[i]
 			line = line.rstrip()
 			fields = line.split('\t')
-			genre = fields[2]
-			smoothlist.append(genre)
+			rough = fields[1]
+			smoothed = fields[2]
+			smoothlist.append(smoothed)
+			roughlist.append(rough)
 			if len(fields) > 5:
 				probdict = interpret_probabilities(fields[5:])
 				utils.add_dicts(probdict, pageprobs[i])
@@ -153,9 +156,10 @@ for filename in validfiles:
 				# record of per-page probabilities.
 
 		versions.append(smoothlist)
+		versions.append(roughlist)
 	pageprobsforfile[filename] = pageprobs
 
-	dissensus[filename] = [x for x in zip(versions[0], versions[1], versions[2], versions[3], versions[4])]
+	dissensus[filename] = [x for x in zip(*versions)]
 
 def maxkey(dictionary):
 	tuplelist = utils.sortkeysbyvalue(dictionary, whethertoreverse = True)
