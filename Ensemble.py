@@ -12,6 +12,7 @@ from math import log
 import statsmodels.api as sm
 import pickle
 import ConfusionMatrix
+import random
 
 def pairtreelabel(htid):
     ''' Given a clean htid, returns a dirty one that will match
@@ -31,44 +32,17 @@ def pairtreelabel(htid):
 
 genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio', 'toc': 'front', 'title': 'front', 'bookp': 'front', 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 'let': 'bio', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra', 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
 
-user = input("Which directory of predictions? ")
-
-predictdir = "/Volumes/TARDIS/output/" + user
-
-groundtruthdir = "/Users/tunder/Dropbox/pagedata/newfeatures/genremaps/"
-# else:
-# 	groundtruthdir = "/Users/tunder/Dropbox/pagedata/mixedtraining/genremaps/"
-
-
-groundtruthfiles = os.listdir(groundtruthdir)
-predictfiles = os.listdir(predictdir)
-
-thefictiondir = input("Fiction dir? ")
-if thefictiondir != "n":
-	thefictiondir = "/Volumes/TARDIS/output/" + thefictiondir
-
-thepoedir = input("Poetry dir? ")
-if thepoedir != "n":
-	thepoedir = "/Volumes/TARDIS/output/" + thepoedir
-
 user = input("Count words (y/n)? ")
 if user == "y":
 	countwords = True
 else:
 	countwords = False
 
-user = input("Separate index (y/n)? ")
-if user == "y":
-	genretranslations["index"] = "index"
-	genretranslations["gloss"] = "index"
-	genretranslations["bibli"] = "index"
-
 tocoalesce = input("Coalesce? ")
 if tocoalesce == "y":
 	tocoalesce = True
 else:
 	tocoalesce = False
-
 
 if countwords:
 	filewordcounts = dict()
@@ -93,27 +67,149 @@ if countwords:
 else:
 	filewordcounts = dict()
 
-# The base list here is produced by predictfiles
-# because obvs we don't care about ground truth
-# that we can't map to a prediction.
-# Our goal in the next loop is to produce such a mapping.
+# compare directories
 
-matchedfilenames = dict()
+listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9"]
+
+predictroot = "/Volumes/TARDIS/output/"
+firstdir = predictroot + listofmodels[0] + "/"
+predictfiles = os.listdir(firstdir)
+
+validfiles = list()
 
 for filename in predictfiles:
-	if ".predict" not in filename:
-		continue
+	if filename.endswith(".predict"):
+		validfiles.append(filename)
 
+groundtruthdir = "/Users/tunder/Dropbox/pagedata/newfeatures/genremaps/"
+
+groundtruthfiles = os.listdir(groundtruthdir)
+
+def get_ground_truth(filename):
+	global groundtruthfiles
+	if ".predict" not in filename:
+		return ""
 	htid = filename[0:-8]
 
 	groundtruthversion = htid + ".map"
 
 	if groundtruthversion not in groundtruthfiles:
 		print("Missing " + htid)
+		return ""
 	else:
-		matchedfilenames[filename] = groundtruthversion
+		return groundtruthversion
 
-# We have identified filenames. Now define functions.
+matchedfilenames = dict()
+for filename in validfiles:
+	gt = get_ground_truth(filename)
+	if gt != "":
+		matchedfilenames[filename] = gt
+
+def interpret_probabilities(listoffields):
+	probdict = dict()
+	for field in listoffields:
+		parts = field.split("::")
+		genre = parts[0]
+
+		try:
+			probability = float(parts[1])
+		except:
+			probability = 0
+			print("Float conversion error!")
+
+		probdict[genre] = probability
+	return probdict
+
+dissensus = dict()
+pageprobsforfile = dict()
+
+for filename in validfiles:
+	versions = list()
+	pageprobs = list()
+	for model in listofmodels:
+		thispath = predictroot + model + "/" + filename
+		with open(thispath, encoding="utf-8") as f:
+			filelines = f.readlines()
+
+		if len(pageprobs) < len(filelines):
+			# Initialize page probabilities to correct length.
+			if len(pageprobs) > 0:
+				print("Initializing more than once. Error condition.")
+			for i in range(len(filelines)):
+				newdict = dict()
+				pageprobs.append(newdict)
+
+		smoothlist = list()
+		for i in range(len(filelines)):
+			line = filelines[i]
+			line = line.rstrip()
+			fields = line.split('\t')
+			genre = fields[2]
+			smoothlist.append(genre)
+			if len(fields) > 5:
+				probdict = interpret_probabilities(fields[5:])
+				utils.add_dicts(probdict, pageprobs[i])
+				# This will add all the probabilities for this page to the
+				# record of per-page probabilities.
+
+		versions.append(smoothlist)
+	pageprobsforfile[filename] = pageprobs
+
+	dissensus[filename] = [x for x in zip(versions[0], versions[1], versions[2], versions[3], versions[4])]
+
+def maxkey(dictionary):
+	tuplelist = utils.sortkeysbyvalue(dictionary, whethertoreverse = True)
+	winner = tuplelist[0][1]
+	if winner == "bio":
+		winner = "non"
+	return winner
+
+def resolve_voting(votes, tiebreaker):
+
+	results = dict()
+	for vote in votes:
+		if vote == "bio":
+			vote = "non"
+		utils.addtodict(vote, 1, results)
+	candidate = utils.sortkeysbyvalue(results, whethertoreverse = True)
+	dissent = 5 - candidate[0][0]
+
+	if candidate[0][0] >= 3:
+		# We have a majority.
+		return candidate[0][1], dissent
+	else:
+		# Could still have a majority.
+		if candidate[0][0] == 2 and candidate[1][0] < 2:
+			return candidate[0][1], dissent
+		else:
+			# We have a tie.
+			if tiebreaker == candidate[0][1]:
+				print("Tiebreaker " + tiebreaker)
+				return candidate[0][1], dissent
+			elif tiebreaker == candidate[1][1]:
+				print("Tiebreaker " + tiebreaker)
+				return candidate[1][1], dissent
+			else:
+				print("Tie in spite of " + tiebreaker)
+				return random.choice([candidate[0][1], candidate[1][1]]), dissent
+
+consensus = dict()
+dissentperfile = dict()
+
+for filename, pagelist in dissensus.items():
+	winners = list()
+	totaldissent = 0
+	pageprobs = pageprobsforfile[filename]
+	for i in range(len(pagelist)):
+		page = pagelist[i]
+		floatwinner = maxkey(pageprobs[i])
+		winner, dissent = resolve_voting(page, floatwinner)
+		winners.append(winner)
+		totaldissent += dissent
+	consensus[filename] = winners
+	htid = filename[0:-8]
+	dissentperfile[htid] = totaldissent
+
 
 def genresareequal(truegenre, predictedgenre):
 	arethesame = ["bio", "trv", "aut", "non"]
@@ -168,7 +264,7 @@ def add_dictionary(masterdict, dicttoadd):
 	return masterdict
 
 def evaluate_filelist(matchedfilenames, excludedhtidlist):
-	global predictdir, groundtruthdir, filewordcounts
+	global consensus, groundtruthdir, filewordcounts
 
 	smoothederrors = dict()
 	unsmoothederrors = dict()
@@ -209,25 +305,26 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 		# The predictionfile has three columns, of which the second
 		# is an unsmoothed prediction and the third is smoothed
 
-		smoothlist = list()
-		roughlist = list()
-		detailedprobabilities = list()
+		smoothlist = consensus[pfile]
 
-		pfilepath = os.path.join(predictdir, pfile)
-		with open(pfilepath,encoding = "utf-8") as f:
-			filelines = f.readlines()
+		# roughlist = list()
+		# detailedprobabilities = list()
 
-		for line in filelines:
-			line = line.rstrip()
-			fields = line.split('\t')
-			roughlist.append(fields[1])
-			smoothlist.append(fields[2])
-			if len(fields) > 5:
-				detailedprobabilities.append("\t".join(fields[5:]))
+		# pfilepath = os.path.join(predictdir, pfile)
+		# with open(pfilepath,encoding = "utf-8") as f:
+		# 	filelines = f.readlines()
 
-			# The prediction file has this format:
-			# pagenumber roughgenre smoothgenre many ... detailed predictions
-			# fields 3 and 4 will be predictions for dummy genres "begin" and "end"
+		# for line in filelines:
+		# 	line = line.rstrip()
+		# 	fields = line.split('\t')
+		# 	roughlist.append(fields[1])
+		# 	smoothlist.append(fields[2])
+		# 	if len(fields) > 5:
+		# 		detailedprobabilities.append("\t".join(fields[5:]))
+
+		# 	# The prediction file has this format:
+		# 	# pagenumber roughgenre smoothgenre many ... detailed predictions
+		# 	# fields 3 and 4 will be predictions for dummy genres "begin" and "end"
 
 		correctlist = list()
 
@@ -240,7 +337,7 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 			fields = line.split('\t')
 			correctlist.append(fields[1])
 
-		assert len(correctlist) == len(roughlist)
+		assert len(correctlist) == len(smoothlist)
 
 		if countwords:
 			tuplelist = filewordcounts[htid]
@@ -252,7 +349,7 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 		oldgenre = ""
 		transitioncount = 0
 		biocount = 0
-		for agenre in roughlist:
+		for agenre in smoothlist:
 			if agenre == "bio":
 				biocount += 1
 			if oldgenre == "fic" and (agenre == "non" or agenre =="bio"):
@@ -260,38 +357,38 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 			oldgenre = agenre
 
 
+		# fictionfilepath = os.path.join(thefictiondir, pfile)
+		# poetryfilepath = os.path.join(thepoedir, pfile)
 
-		fictionfilepath = os.path.join(thefictiondir, pfile)
-		poetryfilepath = os.path.join(thepoedir, pfile)
-
-		mainmodel = cascades.read_probabilities(detailedprobabilities)
+		# mainmodel = cascades.read_probabilities(detailedprobabilities)
 
 		mostlydrapoe, probablybiography, probablyfiction, notdrama, notfiction = cascades.choose_cascade(htid, smoothlist)
-		# This function returns three boolean values which will help us choose a specialized model
-		# to correct current predictions. This scheme is called "cascading classification," thus
-		# we are "choosing a cascade."
+		# # This function returns three boolean values which will help us choose a specialized model
+		# # to correct current predictions. This scheme is called "cascading classification," thus
+		# # we are "choosing a cascade."
 
-		#defensive copy
+		# Make defensive copy
 		adjustedlist = [x for x in smoothlist]
 
-		if notdrama:
-			adjustedlist = cascades.otherthandrama(adjustedlist, mainmodel)
+		# if notdrama:
+		# 	adjustedlist = cascades.otherthandrama(adjustedlist, mainmodel)
 
 
-		if notfiction:
-		 	adjustedlist = cascades.otherthanfiction(adjustedlist, mainmodel)
+		# if notfiction:
+		#  	adjustedlist = cascades.otherthanfiction(adjustedlist, mainmodel)
 
-		if thepoedir != "n" and thefictiondir != "n":
+		# if thepoedir != "n" and thefictiondir != "n":
 
-			numberoftrues = sum([mostlydrapoe, probablybiography, probablyfiction])
+		# 	numberoftrues = sum([mostlydrapoe, probablybiography, probablyfiction])
 
-			if numberoftrues == 1:
-				if mostlydrapoe and thepoedir != "n":
-					adjustedlist, mainmodel = cascades.drapoe_cascade(adjustedlist, mainmodel, poetryfilepath)
-				elif probablybiography:
-					adjustedlist = cascades.biography_cascade(adjustedlist)
-				elif probablyfiction and thefictiondir != "n":
-					adjustedlist, mainmodel = cascades.fiction_cascade(adjustedlist, mainmodel, fictionfilepath)
+		# 	if numberoftrues == 1:
+		# 		if mostlydrapoe and thepoedir != "n":
+		# 			adjustedlist, mainmodel = cascades.drapoe_cascade(adjustedlist, mainmodel, poetryfilepath)
+		# 		elif probablybiography:
+		# 			adjustedlist = cascades.biography_cascade(adjustedlist)
+		# 		elif probablyfiction and thefictiondir != "n":
+		# 			adjustedlist, mainmodel = cascades.fiction_cascade(adjustedlist, mainmodel, fictionfilepath)
+
 		if tocoalesce:
 			coalescedlist, numberofdistinctsequences = Coalescer.coalesce(adjustedlist)
 			# This function simplifies our prediction by looking for cases where a small
@@ -328,11 +425,11 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 			if errorsbygenre[("index", "non")] > 2:
 				print("Index fail: " + htid + " " + str(errorsbygenre[("index", "non")]))
 
-		totaltruegenre, correctbygenre, errorsbygenre, accurate, inaccurate = compare_two_lists(correctlist, roughlist, wordsperpage, countwords)
-		add_dictionary(unsmoothederrors, errorsbygenre)
-		add_dictionary(unsmoothedcorrect, correctbygenre)
-		roughaccurate += accurate
-		roughnotaccurate += inaccurate
+		# totaltruegenre, correctbygenre, errorsbygenre, accurate, inaccurate = compare_two_lists(correctlist, roughlist, wordsperpage, countwords)
+		# add_dictionary(unsmoothederrors, errorsbygenre)
+		# add_dictionary(unsmoothedcorrect, correctbygenre)
+		# roughaccurate += accurate
+		# roughnotaccurate += inaccurate
 
 		totaltruegenre, correctbygenre, errorsbygenre, accurate, inaccurate = compare_two_lists(correctlist, coalescedlist, wordsperpage, countwords)
 		add_dictionary(coalescederrors, errorsbygenre)
@@ -377,19 +474,19 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 			if gt == genre:
 				print(smoothed + ": " + str(errorcount) + "   " + str (errorcount/count))
 
-	roughaccuracy = roughaccurate / (roughaccurate + roughnotaccurate)
+	# roughaccuracy = roughaccurate / (roughaccurate + roughnotaccurate)
 	smoothaccuracy = smoothaccurate / (smoothaccurate + smoothnotaccurate)
 	coalaccuracy = coalescedaccurate / (coalescedaccurate + coalescednotaccurate)
 
 	confusion = ConfusionMatrix.confusion_matrix(coalescedcorrect, coalescederrors)
 
-	return metadatatable, accuracies, roughaccuracy, smoothaccuracy, coalaccuracy
+	return metadatatable, accuracies, smoothaccuracy, coalaccuracy
 
-metadatatable, accuracies, roughaccuracy, smoothaccuracy, coalaccuracy = evaluate_filelist(matchedfilenames, list())
+metadatatable, accuracies, smoothaccuracy, coalaccuracy = evaluate_filelist(matchedfilenames, list())
 
 print()
-print("ROUGH MICROACCURACY:")
-print(roughaccuracy)
+# print("ROUGH MICROACCURACY:")
+# print(roughaccuracy)
 print("SMOOTHED MICROACCURACY:")
 print(smoothaccuracy)
 print("COALESCED MICROACCURACY:")
@@ -401,12 +498,13 @@ with open("/Users/tunder/Dropbox/pagedata/interrater/ActualAccuracies.tsv", mode
 		outline = key + "\t" + str(value) + "\n"
 		f.write(outline)
 
-metadatapath = os.path.join(predictdir, "predictionMetadata.tsv")
+metadatapath = os.path.join(firstdir, "predictionMetadata.tsv")
 rowindices, columns, metadata = utils.readtsv(metadatapath)
 
 metadatatable['maxprob']= metadata['maxprob']
 metadatatable['gap'] = metadata['gap']
 metadatatable['accuracy'] = accuracies
+metadatatable['dissent'] = dissentperfile
 
 data = pd.DataFrame(metadatatable, dtype = "float")
 

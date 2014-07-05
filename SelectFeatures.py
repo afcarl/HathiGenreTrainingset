@@ -12,7 +12,7 @@ import os, sys
 
 genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio',
 'toc': 'front', 'title': 'front', 'bookp': 'front',
-'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 
+'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non',
 'let': 'non', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra',
 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
 
@@ -52,7 +52,7 @@ htids = list()
 for filename in genrefiles:
 	if ".map" not in filename:
 		continue
-	
+
 	htid = filename[0:-4]
 
 	featureversion = htid + ".pg.tsv"
@@ -106,7 +106,7 @@ for htid in htids:
 	if genremaxpage != featuremaxpage:
 		print("Pagination discrepancy in " + htid)
 		sys.exit()
-	
+
 	for page in range(genremaxpage):
 
 		genre = genrepages[page]
@@ -133,7 +133,8 @@ for htid in htids:
 				# These are special structural features not to be included in the
 				# feature vocabulary.
 			else:
-				addtodict(word, count, lexicon)
+				addtodict(word, 1, lexicon)
+				# Changing this so words only get counted once
 
 mastervocab = dict()
 
@@ -148,29 +149,27 @@ for genre, lexicon in genrelexicons.items():
 	for i in range(maxfeatures):
 		print(sortedwords[i][1])
 
-	maxfeatures = 500
+	maxfeatures = 210
 	if len(sortedwords) < maxfeatures:
-		maxfeatures = len(sortedwords)	
+		maxfeatures = len(sortedwords)
 
 	for i in range(maxfeatures):
 		word = sortedwords[i][1]
 		count = sortedwords[i][0]
 
-		if count < 5:
-			continue
-		else:
-			addtodict(word, count, mastervocab)
+		addtodict(word, count, mastervocab)
 
 tuplelist = sortkeysbyvalue(mastervocab, whethertoreverse = True)
 vocabulary = [x[1] for x in tuplelist]
+vocabulary = vocabulary[:490]
 
-wordstoadd = ["index", "glossary", "argument", "biographical", "memoir", "memoirs", "autobiography", "dramatis", "personae"]
+wordstoadd = ["index", "glossary", "argument", "biographical", "memoir", "memoirs", "autobiography", "dramatis", "personae", "contents", "table"]
 
 for word in wordstoadd:
 	if word not in vocabulary:
 		vocabulary.append(word)
 
-with open("/Users/tunder/Dropbox/pagedata/muchenlargedvocabulary.txt", mode="w", encoding="utf-8") as f:
+with open("/Users/tunder/Dropbox/pagedata/reducedvocabulary2.txt", mode="w", encoding="utf-8") as f:
 	for word in vocabulary:
 		f.write(word + '\n')
 

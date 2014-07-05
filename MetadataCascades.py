@@ -119,7 +119,7 @@ def choose_cascade(htid, pagepredictions):
         title = metadata["title"][htid].lower()
         titlewords = title.split()
 
-        if "poems" in titlewords or "ballads" in titlewords:
+        if "poems" in titlewords or "ballads" in titlewords or "poetical" in titlewords:
             mostlydrapoe = True
 
         if "comedy" in titlewords or "tragedy" in titlewords or "plays" in titlewords:

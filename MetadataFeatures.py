@@ -7,6 +7,44 @@ rowindices, columns, metadata = utils.readtsv("/Users/tunder/Dropbox/pagedata/me
 
 options = ["non", "bio", "poe", "dra", "fic"]
 
+with open("/Users/tunder/Dropbox/pagedata/litlocs.tsv", encoding="utf-8") as f:
+    filelines = f.readlines()
+litlocs = dict()
+for line in filelines:
+    line = line.strip()
+    fields = line.split('\t')
+    litlocs[fields[0]] = int(round(1000 * float(fields[1])))
+
+with open("/Users/tunder/Dropbox/pagedata/biolocs.tsv", encoding="utf-8") as f:
+    filelines = f.readlines()
+biolocs = dict()
+for line in filelines:
+    line = line.strip()
+    fields = line.split('\t')
+    biolocs[fields[0]] = int(round(1000 * float(fields[1])))
+
+def letterpart(locnum):
+    if locnum == "<blank>":
+        return "<blank>"
+
+    letterstring = ""
+    for char in locnum:
+        if char.isalpha():
+            letterstring += char.upper()
+        else:
+            break
+    if len(letterstring) > 2:
+        letterstring = letterstring[:2]
+
+    if len(letterstring) > 1 and letterstring[0] == "N":
+        letterstring = "N"
+    if len(letterstring) > 1 and letterstring[0] == "V":
+        letterstring = "V"
+    if len(letterstring) < 1:
+        letterstring = "00"
+
+    return letterstring
+
 def keywithmaxval(dictionary):
     maxval = 0
     maxkey = ""
@@ -47,15 +85,13 @@ def sequence_to_counts(genresequence):
 def choose_cascade(htid):
     '''Reads metadata about this volume and uses it to decide what metadata-level features should be assigned.'''
 
-    global rowindices, columns, metadata
+    global rowindices, columns, metadata, litlocs, biolocs
 
 
     probablydrama = False
     probablypoetry = False
     probablybiography = False
     probablyfiction = False
-    locstartsP = False
-    locnotP = False
 
     htid = utils.pairtreelabel(htid)
     # convert the clean pairtree filename into a dirty pairtree label for metadata matching
@@ -91,13 +127,24 @@ def choose_cascade(htid):
 
         loc = metadata["LOCnum"][htid]
 
-        if (loc.startswith("P") and not loc.startswith("PE")) or loc.startswith("AC4"):
-            locstartsP = True
-        elif not loc.startswith("<"):
-            locnotP = True
+        LC = letterpart(loc)
+
+        if LC in litlocs:
+            litprob = litlocs[LC]
+            print(LC + " lit: " + str(litprob))
+        else:
+            litprob = 120
+            print(LC)
+
+        if LC in biolocs:
+            bioprob = biolocs[LC]
+            print(LC + " bio: " + str(bioprob))
+        else:
+            bioprob = 120
+            print(LC)
 
 
-    return probablybiography, probablydrama, probablyfiction, probablypoetry, locstartsP, locnotP
+    return probablybiography, probablydrama, probablyfiction, probablypoetry, litprob, bioprob
 
 sourcedir = "/Users/tunder/Dropbox/pagedata/newfeatures/oldfeatures/"
 
@@ -111,7 +158,7 @@ for filename in dirlist:
 
     if len(filename) > 7 and not filename.startswith("."):
         stripped = filename[:-7]
-        probablybiography, probablydrama, probablyfiction, probablypoetry, locstartsP, locnotP = choose_cascade(stripped)
+        probablybiography, probablydrama, probablyfiction, probablypoetry, litprob, bioprob = choose_cascade(stripped)
 
         outpath = "/Users/tunder/Dropbox/pagedata/newfeatures/pagefeatures/" + filename
 
@@ -128,14 +175,10 @@ for filename in dirlist:
             if probablypoetry:
                 f.write("-1\t#metaPoetry\t0\n")
                 print("Probably poe: " + stripped)
-            if locstartsP:
-                f.write("-1\t#locstartsP\t0\n")
-                print("Loc starts P: " + stripped)
-                otherctr += 1
-            if locnotP:
-                f.write("-1\t#locnotP\t0\n")
-                print("Loc NOT P: " + stripped)
-                ctr += 1
+
+            f.write("-1\t#litprob\t" + str(litprob) +"\n")
+
+            f.write("-1\t#bioprob\t" + str(bioprob) + "\n")
 
         sourcepath = sourcedir + filename
         with open(sourcepath, encoding = 'utf-8') as f:
@@ -145,6 +188,4 @@ for filename in dirlist:
             for line in filelines:
                 f.write(line)
 
-print("NotP " + str(ctr))
-print("P " + str(otherctr))
 
