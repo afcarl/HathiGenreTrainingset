@@ -69,7 +69,7 @@ else:
 
 # compare directories
 
-listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9", "bydate"]
+listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9", "bydate", "bycallno"]
 
 predictroot = "/Volumes/TARDIS/output/"
 firstdir = predictroot + listofmodels[0] + "/"
@@ -164,8 +164,8 @@ for filename in validfiles:
 def maxkey(dictionary):
 	tuplelist = utils.sortkeysbyvalue(dictionary, whethertoreverse = True)
 	winner = tuplelist[0][1]
-	if winner == "bio":
-		winner = "non"
+	# if winner == "bio":
+	# 	winner = "non"
 	return winner
 
 def resolve_voting(votes, tiebreaker):
@@ -173,8 +173,8 @@ def resolve_voting(votes, tiebreaker):
 
 	results = dict()
 	for vote in votes:
-		if vote == "bio":
-			vote = "non"
+		# if vote == "bio":
+		# 	vote = "non"
 		utils.addtodict(vote, 1, results)
 	candidate = utils.sortkeysbyvalue(results, whethertoreverse = True)
 
@@ -182,41 +182,50 @@ def resolve_voting(votes, tiebreaker):
 
 	if len(candidate) < 2:
 		# There is only one candidate.
-		return candidate[0][1], dissent
+		return candidate[0][1], dissent, candidate[0][1]
 
 	elif candidate[0][0] > candidate[1][0]:
 		# We have a majority.
-		return candidate[0][1], dissent
+		return candidate[0][1], dissent, candidate[1][1]
 
 	else:
 		# We have a tie.
 		if tiebreaker == candidate[0][1]:
 			print("Tiebreaker " + tiebreaker)
-			return candidate[0][1], dissent
+			return candidate[0][1], dissent, candidate[1][1]
 		elif tiebreaker == candidate[1][1]:
 			print("Tiebreaker " + tiebreaker)
-			return candidate[1][1], dissent
+			return candidate[1][1], dissent, candidate[0][1]
 		else:
 			print("Tie in spite of " + tiebreaker)
-			return random.choice([candidate[0][1], candidate[1][1]]), dissent
+			win = random.choice([candidate[0][1], candidate[1][1]])
+			if win == candidate[0][1]:
+				runnerup = candidate[1][1]
+			else:
+				runnerup = candidate[0][1]
+
+			return win, dissent, runnerup
 
 consensus = dict()
 dissentperfile = dict()
+secondthoughts = dict()
 
 for filename, pagelist in dissensus.items():
 	winners = list()
+	runnersup = list()
 	totaldissent = 0
 	pageprobs = pageprobsforfile[filename]
 	for i in range(len(pagelist)):
 		page = pagelist[i]
 		floatwinner = maxkey(pageprobs[i])
-		winner, dissent = resolve_voting(page, floatwinner)
+		winner, dissent, runnerup = resolve_voting(page, floatwinner)
 		winners.append(winner)
+		runnersup.append(runnerup)
 		totaldissent += dissent
 	consensus[filename] = winners
+	secondthoughts[filename] = runnersup
 	htid = filename[0:-8]
 	dissentperfile[htid] = totaldissent
-
 
 def genresareequal(truegenre, predictedgenre):
 	arethesame = ["bio", "trv", "aut", "non"]
@@ -269,6 +278,20 @@ def add_dictionary(masterdict, dicttoadd):
 		else:
 			masterdict[key] = value
 	return masterdict
+
+def nix_a_genre(firstthoughts, genretonix, secondthoughts):
+	returnsequence = list()
+	assert len(firstthoughts) == len(secondthoughts)
+
+	for i in range(len(firstthoughts)):
+		genre = firstthoughts[i]
+		if genre == genretonix:
+			returnsequence.append(secondthoughts[i])
+		else:
+			returnsequence.append(genre)
+
+	return returnsequence
+
 
 def evaluate_filelist(matchedfilenames, excludedhtidlist):
 	global consensus, groundtruthdir, filewordcounts
@@ -377,12 +400,12 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 		# Make defensive copy
 		adjustedlist = [x for x in smoothlist]
 
-		# if notdrama:
-		# 	adjustedlist = cascades.otherthandrama(adjustedlist, mainmodel)
+		if notdrama:
+			adjustedlist = nix_a_genre(adjustedlist, "dra", secondthoughts[pfile])
 
 
-		# if notfiction:
-		#  	adjustedlist = cascades.otherthanfiction(adjustedlist, mainmodel)
+		if notfiction:
+			adjustedlist = nix_a_genre(adjustedlist, "fic", secondthoughts[pfile])
 
 		# if thepoedir != "n" and thefictiondir != "n":
 

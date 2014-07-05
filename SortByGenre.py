@@ -1,18 +1,53 @@
 # Sort training data by date of publication
 
 import os, sys
-import FileUtils
+import SonicScrewdriver as utils
 
-rowindices, columns, metadata = FileUtils.readtsv2("/Users/tunder/Dropbox/PythonScripts/hathimeta/ExtractedMetadata.tsv") 
+def letterpart(locnum):
+    if locnum == "<blank>":
+        return "<blank>"
 
-genrepath = "/Users/tunder/Dropbox/pagedata/mixedtraining/genremaps/"
-featurepath = "/Users/tunder/Dropbox/pagedata/mixedtraining/pagefeatures/"
+    letterstring = ""
+    for char in locnum:
+        if char.isalpha():
+            letterstring += char.upper()
+        else:
+            break
+    if len(letterstring) > 2:
+        letterstring = letterstring[:2]
+
+    if len(letterstring) > 1 and letterstring[0] == "N":
+        letterstring = "N"
+    if len(letterstring) > 1 and letterstring[0] == "V":
+        letterstring = "V"
+
+    return letterstring
+
+rowindices, columns, metadata = utils.readtsv("/Users/tunder/Dropbox/pagedata/metascrape/EnrichedMetadata.tsv")
+
+with open("/Users/tunder/Dropbox/pagedata/litlocs.tsv", encoding="utf-8") as f:
+    filelines = f.readlines()
+litlocs = dict()
+for line in filelines:
+    line = line.strip()
+    fields = line.split('\t')
+    litlocs[fields[0]] = int(round(1000 * float(fields[1])))
+
+with open("/Users/tunder/Dropbox/pagedata/biolocs.tsv", encoding="utf-8") as f:
+    filelines = f.readlines()
+biolocs = dict()
+for line in filelines:
+    line = line.strip()
+    fields = line.split('\t')
+    biolocs[fields[0]] = int(round(1000 * float(fields[1])))
+
+genrepath = "/Users/tunder/Dropbox/pagedata/newfeatures/genremaps/"
+featurepath = "/Users/tunder/Dropbox/pagedata/newfeatures/pagefeatures/"
 
 genrefiles = os.listdir(genrepath)
 featurefiles = os.listdir(featurepath)
 
 HTIDs = list()
-ficpercent = dict()
 
 for filename in genrefiles:
 	if not filename.endswith(".map"):
@@ -23,33 +58,45 @@ for filename in genrefiles:
 		HTIDs.append(htid)
 		# Take the part before the extension as the HTID
 
-		with open(genrepath + filename, mode="r", encoding="utf-8") as f:
-			filelines = f.readlines()
-		pagecounter = 0
-		ficcounter = 0
-		for line in filelines:
-			pagecounter += 1
-			line = line.rstrip()
-			fields = line.split('\t')
-			if fields[1] == "fic":
-				ficcounter += 1
-		ficpercent[htid] = (ficcounter / pagecounter) * 100
-
 ficgenre = dict()
 
 for htid in HTIDs:
-	dirtyid = FileUtils.pairtreelabel(htid)
+	dirtyid = utils.pairtreelabel(htid)
 	if dirtyid in rowindices:
 		genrestring = metadata["genres"][dirtyid]
 		genreinfo = genrestring.split(";")
+
 		if "Fiction" in genreinfo or "Novel" in genreinfo:
 			ficgenre[htid] = True
 		else:
 			ficgenre[htid] = False
-	else:
-		print("Missing ID.")
 
-	
+		callno = metadata["LOCnum"][dirtyid]
+		LC = letterpart(callno)
+
+		if LC in litlocs:
+			litprob = litlocs[LC]
+			print(LC + " lit: " + str(litprob))
+		else:
+			litprob = 120
+			print(LC)
+
+		if LC in biolocs:
+			bioprob = biolocs[LC]
+			print(LC + " bio: " + str(bioprob))
+		else:
+			bioprob = 120
+			print(LC)
+
+		if litprob > 150 and bioprob < 300:
+			ficgenre[htid] = True
+
+ctr = 0
+for key, value in ficgenre.items():
+	if value:
+		ctr += 1
+
+print(ctr)
 
 import shutil
 def movefile(htid, destination):
@@ -64,13 +111,11 @@ def movefile(htid, destination):
 for htid in HTIDs:
 
 	isfiction = ficgenre[htid]
-	percent = ficpercent[htid]
 
-	if isfiction and percent < 50:
-		print(htid + "is anomalous.")
-
-	if isfiction or percent > 20:
-		movefile(htid, "fictionset")
+	if isfiction:
+		movefile(htid, "lit")
+	else:
+		movefile(htid, "nonlit")
 
 
 
