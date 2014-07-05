@@ -165,6 +165,7 @@ def maxkey(dictionary):
 	return winner
 
 def resolve_voting(votes, tiebreaker):
+	electorate = len(votes)
 
 	results = dict()
 	for vote in votes:
@@ -172,26 +173,28 @@ def resolve_voting(votes, tiebreaker):
 			vote = "non"
 		utils.addtodict(vote, 1, results)
 	candidate = utils.sortkeysbyvalue(results, whethertoreverse = True)
-	dissent = 5 - candidate[0][0]
 
-	if candidate[0][0] >= 3:
+	dissent = electorate - candidate[0][0]
+
+	if len(candidate) < 2:
+		# There is only one candidate.
+		return candidate[0][1], dissent
+
+	elif candidate[0][0] > candidate[1][0]:
 		# We have a majority.
 		return candidate[0][1], dissent
+
 	else:
-		# Could still have a majority.
-		if candidate[0][0] == 2 and candidate[1][0] < 2:
+		# We have a tie.
+		if tiebreaker == candidate[0][1]:
+			print("Tiebreaker " + tiebreaker)
 			return candidate[0][1], dissent
+		elif tiebreaker == candidate[1][1]:
+			print("Tiebreaker " + tiebreaker)
+			return candidate[1][1], dissent
 		else:
-			# We have a tie.
-			if tiebreaker == candidate[0][1]:
-				print("Tiebreaker " + tiebreaker)
-				return candidate[0][1], dissent
-			elif tiebreaker == candidate[1][1]:
-				print("Tiebreaker " + tiebreaker)
-				return candidate[1][1], dissent
-			else:
-				print("Tie in spite of " + tiebreaker)
-				return random.choice([candidate[0][1], candidate[1][1]]), dissent
+			print("Tie in spite of " + tiebreaker)
+			return random.choice([candidate[0][1], candidate[1][1]]), dissent
 
 consensus = dict()
 dissentperfile = dict()
