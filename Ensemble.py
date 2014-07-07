@@ -69,7 +69,7 @@ else:
 
 # compare directories
 
-listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9", "bydate", "bycallno"]
+listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9", "svm", "bycallno"]
 
 predictroot = "/Volumes/TARDIS/output/"
 firstdir = predictroot + listofmodels[0] + "/"
@@ -127,36 +127,39 @@ for filename in validfiles:
 	versions = list()
 	pageprobs = list()
 	for model in listofmodels:
-		thispath = predictroot + model + "/" + filename
-		with open(thispath, encoding="utf-8") as f:
-			filelines = f.readlines()
+		try:
+			thispath = predictroot + model + "/" + filename
+			with open(thispath, encoding="utf-8") as f:
+				filelines = f.readlines()
 
-		if len(pageprobs) < len(filelines):
-			# Initialize page probabilities to correct length.
-			if len(pageprobs) > 0:
-				print("Initializing more than once. Error condition.")
+			if len(pageprobs) < len(filelines):
+				# Initialize page probabilities to correct length.
+				if len(pageprobs) > 0:
+					print("Initializing more than once. Error condition.")
+				for i in range(len(filelines)):
+					newdict = dict()
+					pageprobs.append(newdict)
+
+			smoothlist = list()
+			roughlist = list()
 			for i in range(len(filelines)):
-				newdict = dict()
-				pageprobs.append(newdict)
+				line = filelines[i]
+				line = line.rstrip()
+				fields = line.split('\t')
+				rough = fields[1]
+				smoothed = fields[2]
+				smoothlist.append(smoothed)
+				roughlist.append(rough)
+				if len(fields) > 5:
+					probdict = interpret_probabilities(fields[5:])
+					utils.add_dicts(probdict, pageprobs[i])
+					# This will add all the probabilities for this page to the
+					# record of per-page probabilities.
 
-		smoothlist = list()
-		roughlist = list()
-		for i in range(len(filelines)):
-			line = filelines[i]
-			line = line.rstrip()
-			fields = line.split('\t')
-			rough = fields[1]
-			smoothed = fields[2]
-			smoothlist.append(smoothed)
-			roughlist.append(rough)
-			if len(fields) > 5:
-				probdict = interpret_probabilities(fields[5:])
-				utils.add_dicts(probdict, pageprobs[i])
-				# This will add all the probabilities for this page to the
-				# record of per-page probabilities.
-
-		versions.append(smoothlist)
-		versions.append(roughlist)
+			versions.append(smoothlist)
+			versions.append(roughlist)
+		except:
+			pass
 	pageprobsforfile[filename] = pageprobs
 
 	dissensus[filename] = [x for x in zip(*versions)]

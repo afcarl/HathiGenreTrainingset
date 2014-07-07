@@ -149,7 +149,7 @@ for genre, lexicon in genrelexicons.items():
 	for i in range(maxfeatures):
 		print(sortedwords[i][1])
 
-	maxfeatures = 210
+	maxfeatures = 350
 	if len(sortedwords) < maxfeatures:
 		maxfeatures = len(sortedwords)
 
@@ -161,15 +161,15 @@ for genre, lexicon in genrelexicons.items():
 
 tuplelist = sortkeysbyvalue(mastervocab, whethertoreverse = True)
 vocabulary = [x[1] for x in tuplelist]
-vocabulary = vocabulary[:490]
+vocabulary = vocabulary[:1000]
 
-wordstoadd = ["index", "glossary", "argument", "biographical", "memoir", "memoirs", "autobiography", "dramatis", "personae", "contents", "table"]
+wordstoadd = ["index", "glossary", "argument", "biographical", "memoir", "memoirs", "autobiography", "dramatis", "personae", "contents", "table", "arabicprice"]
 
 for word in wordstoadd:
 	if word not in vocabulary:
 		vocabulary.append(word)
 
-with open("/Users/tunder/Dropbox/pagedata/reducedvocabulary2.txt", mode="w", encoding="utf-8") as f:
+with open("/Users/tunder/Dropbox/pagedata/thousandvocabulary.txt", mode="w", encoding="utf-8") as f:
 	for word in vocabulary:
 		f.write(word + '\n')
 
