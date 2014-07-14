@@ -97,7 +97,7 @@ with open(outputfile, mode="w", encoding="utf-8") as f:
     f.write("@RELATION crf")
     f.write("\n")
     for attribute in sorted(nominalattributes):
-        f.write("@ATTRIBUTE " + attribute + "\t{ads,bio,dra,fic,poe,non,front,back}\n")
+        f.write("@ATTRIBUTE " + attribute + "\t{begin,end,ads,bio,dra,fic,poe,non,front,back}\n")
     for attribute in sorted(numericattributes):
         f.write("@ATTRIBUTE " + attribute + "\tNUMERIC\n")
     f.write("@ATTRIBUTE class\t{model,runnerup,prev,next}\n")
