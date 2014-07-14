@@ -80,9 +80,16 @@ def normalize_dict(dictionary):
 
     return newdictionary
 
+# BEGIN MAIN.
+
+mclass = 0
+rclass = 0
+nclass = 0
+pclass = 0
+
 outputfile = "/Users/tunder/Dropbox/pagedata/errors.arff"
-nominalattributes = ["thisgenre", "prevgenre", "runupgenre"]
-numericattributes = ["thislen", "prevlen", "nextgenre", "nextlen", "dissent", "runupisprev",            "runupisnext", "previsnext", "genreproportion", "runupproportion"]
+nominalattributes = ["thisgenre", "prevgenre", "runupgenre", "nextgenre"]
+numericattributes = ["thislen", "prevlen", "nextlen", "dissent", "runupisprev", "runupisnext", "previsnext", "genreproportion", "runupproportion"]
 
 with open(outputfile, mode="w", encoding="utf-8") as f:
     f.write("% 1. Title: Training set for CRF.\n")
@@ -107,9 +114,9 @@ for htid, predictedgenres in consensus.items():
     dissentseq = dissentsequences[htid]
     groundtruth = groundtruths[htid]
 
-    assert len(dissentseq) = len(predictedgenres)
-    assert len(pageprobs) = len(predictedgenres)
-    assert len(runnersup) = len(predictedgenres)
+    assert len(dissentseq) == len(predictedgenres)
+    assert len(pageprobs) == len(predictedgenres)
+    assert len(runnersup) == len(predictedgenres)
 
     features = list()
 
@@ -128,7 +135,6 @@ for htid, predictedgenres in consensus.items():
         chunkctr += 1
 
     assert len(chunkindices) == len(predictedgenres)
-    assert chunkctr == len(chunklist) - 1
 
     # We create a dictionary of genre countrs for this
     # volume in order to assess each genre's prevalence.
@@ -152,7 +158,7 @@ for htid, predictedgenres in consensus.items():
             thispage["prevgenre"] = chunklist[chunkidx - 1].genretype
             thispage["prevlen"] = chunklist[chunkidx - 1].getlen()
 
-        if chunkidx == chunkctr:
+        if chunkidx == len(chunklist) - 1:
             thispage["nextgenre"] = "end"
             thispage["nextlen"] = 0
         else:
@@ -189,18 +195,23 @@ for htid, predictedgenres in consensus.items():
 
         if are_equal(groundtruth[i], predictedgenres[i]):
             thispage["class"] = "model"
+            mclass += 1
             # the model was right
         elif are_equal(groundtruth[i], thispage["runupgenre"]):
             thispage["class"] = "runnerup"
+            rclass += 1
             # the runner-up to model prediction was right
         elif are_equal(groundtruth[i], thispage["prevgenre"]):
             thispage["class"] = "prev"
+            pclass += 1
             # the page should continue previous segment's genre
         elif are_equal(groundtruth[i], thispage["nextgenre"]):
             thispage["class"] = "next"
+            nclass += 1
             # the page should already be in next segment's genre
         else:
             thispage["class"] = "model"
+            mclass += 1
             # because we don't know how to solve this, so leave it.
 
         features.append(thispage)
@@ -217,9 +228,7 @@ for htid, predictedgenres in consensus.items():
             for attribute in sorted(nominalattributes):
                 outputline = outputline + page[attribute] + ","
             for attribute in sorted(numericattributes):
-                outputline = outputline + page[attribute] + ","
+                outputline = outputline + str(page[attribute]) + ","
             outputline = outputline + page["class"] + "\n"
             f.write(outputline)
-
-
 
