@@ -1,5 +1,5 @@
-# Evaluate page predictions
-# EvaluatePagePredicts.py
+# Gather models into an ensemble.
+# Ensemble.py
 
 import os
 import numpy as np

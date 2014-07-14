@@ -43,6 +43,9 @@ class Volume:
 				self.inferredsequence[i] = genre
 			return True
 
+	def getchunklist(self):
+		return self.chunklist
+
 class Chunk:
 
 	def __init__(self, genre, pagenum):
@@ -52,6 +55,9 @@ class Chunk:
 	def clip(self, pagenum):
 		self.endpage = pagenum
 		self.chunksize = self.endpage - self.startpage
+
+	def getlen(self):
+		return self.endpage - self.startpage
 
 def effectively_equal(genrea, genreb):
 	alsothesame = ["back", "index"]
