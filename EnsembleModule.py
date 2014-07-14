@@ -26,21 +26,18 @@ def pairtreelabel(htid):
     return htid
 
 def get_ground_truth_file(filename):
-    global groundtruthfiles
-    if ".predict" not in filename:
+    '''Just returns a filename.'''
+
+    if not ".predict" in filename:
         return ""
+
     htid = filename[0:-8]
 
     groundtruthversion = htid + ".map"
+    return groundtruthversion
 
-    if groundtruthversion not in groundtruthfiles:
-        print("Missing " + htid)
-        return ""
-    else:
-        return groundtruthversion
+def get_ground_truth(gtfile, groundtruthdir, genretranslations):
 
-def get_ground_truth(gtfile):
-    global groundtruthdir, genretranslations
     correctlist = list()
 
     gtfilepath = os.path.join(groundtruthdir, gtfile)
@@ -206,10 +203,12 @@ def main(listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfea
     htidtable = dict()
     for filename in validfiles:
         gt = get_ground_truth_file(filename)
+        if not gt in groundtruthfiles:
+            continue
         htid = gt[0:-4]
         htidtable[filename] = htid
         if gt != "":
-            groundtruth = get_ground_truth(gt)
+            groundtruth = get_ground_truth(gt, groundtruthdir, genretranslations)
             groundtruths[htid] = groundtruth
 
     dissensus = dict()
@@ -260,6 +259,7 @@ def main(listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfea
     consensus = dict()
     dissentperfile = dict()
     secondthoughts = dict()
+    dissentsequences = dict()
 
     for htid, pagelist in dissensus.items():
         winners = list()
