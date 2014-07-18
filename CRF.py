@@ -91,7 +91,7 @@ pclass = 0
 outputfile = "/Users/tunder/Dropbox/pagedata/errors.arff"
 
 nominalattributes = ["thisgenre", "prevgenre", "runupgenre", "nextgenre"]
-numericattributes = ["thislen", "prevlen", "nextlen", "dissent", "runupisprev", "runupisnext", "previsnext", "genreproportion", "runupproportion"]
+numericattributes = ["thislen", "prevlen", "nextlen", "dissent", "runupisprev", "runupisnext", "previsnext", "genreproportion", "runupproportion", "probthis", "probrunup"]
 
 with open(outputfile, mode="w", encoding="utf-8") as f:
     f.write("% 1. Title: Training set for CRF.\n")
@@ -197,6 +197,9 @@ for htid, predictedgenres in consensus.items():
             thispage["runupproportion"] = genreproportions[thispage["runupgenre"]]
         else:
             thispage["runupproportion"] = 0
+
+        thispage["probthis"] = pageprobs[i][thispage["thisgenre"]]
+        thispage["probrunup"] = pageprobs[i][thispage["runupgenre"]]
 
         if are_equal(groundtruth[i], predictedgenres[i]):
             thispage["class"] = "model"
