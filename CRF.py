@@ -1,4 +1,4 @@
-# CRF.py 
+# CRF.py
 #
 # Create training data for postprocessing
 #
@@ -87,12 +87,13 @@ rclass = 0
 nclass = 0
 pclass = 0
 
-outputfile1 = "/Users/tunder/JavaWorkspace/libraries/data/errortrain.arff"
-outputfile2 = "/Users/tunder/JavaWorkspace/libraries/data/errortest.arff"
+
+outputfile = "/Users/tunder/JavaWorkspace/libraries/data/errors.arff"
+
 nominalattributes = ["thisgenre", "prevgenre", "runupgenre", "nextgenre"]
 numericattributes = ["thislen", "prevlen", "nextlen", "dissent", "runupisprev", "runupisnext", "previsnext", "genreproportion", "runupproportion"]
 
-with open(outputfile1, mode="w", encoding="utf-8") as f:
+with open(outputfile, mode="w", encoding="utf-8") as f:
     f.write("% 1. Title: Training set for CRF.\n")
     f.write("\n")
     f.write("@RELATION crf")
@@ -101,26 +102,14 @@ with open(outputfile1, mode="w", encoding="utf-8") as f:
         f.write("@ATTRIBUTE " + attribute + "\t{begin,end,ads,bio,dra,fic,poe,non,front,back}\n")
     for attribute in sorted(numericattributes):
         f.write("@ATTRIBUTE " + attribute + "\tNUMERIC\n")
+    f.write("@ATTRIBUTE id\tNUMERIC\n)
     f.write("@ATTRIBUTE class\t{model,runnerup,prev,next}\n")
     f.write("\n")
     f.write("@DATA\n")
 
-with open(outputfile2, mode="w", encoding="utf-8") as f:
-    f.write("% 1. Title: Test set for CRF.\n")
-    f.write("\n")
-    f.write("@RELATION crf")
-    f.write("\n")
-    for attribute in sorted(nominalattributes):
-        f.write("@ATTRIBUTE " + attribute + "\t{begin,end,ads,bio,dra,fic,poe,non,front,back}\n")
-    for attribute in sorted(numericattributes):
-        f.write("@ATTRIBUTE " + attribute + "\tNUMERIC\n")
-    f.write("@ATTRIBUTE class\t{model,runnerup,prev,next}\n")
-    f.write("\n")
-    f.write("@DATA\n") 
-
 consensus, secondthoughts, pageprobsforfile, dissentsequences, groundtruths = EnsembleModule.main()
 
-foldcounter = 0
+idcounter = 0
 
 for htid, predictedgenres in consensus.items():
     thisvolume = Volume(predictedgenres)
@@ -238,29 +227,19 @@ for htid, predictedgenres in consensus.items():
 
     # Write features for this volume.
 
-    if foldcounter % 8 == 1:
+    with open(outputfile, mode="a", encoding="utf=8") as f:
+        for page in features:
+            outputline = ""
+            for attribute in sorted(nominalattributes):
+                outputline = outputline + page[attribute] + ","
+            for attribute in sorted(numericattributes):
+                outputline = outputline + str(page[attribute]) + ","
+            outputline = outputline + str(idcounter) + ","
+            outputline = outputline + page["class"] + "\n"
+            f.write(outputline)
 
-        with open(outputfile2, mode="a", encoding="utf=8") as f:
-            for page in features:
-                outputline = ""
-                for attribute in sorted(nominalattributes):
-                    outputline = outputline + page[attribute] + ","
-                for attribute in sorted(numericattributes):
-                    outputline = outputline + str(page[attribute]) + ","
-                outputline = outputline + page["class"] + "\n"
-                f.write(outputline)
+    idcounter += 1
+    ## We have a unique value of this counter for each volume.
 
-    else:
-
-        with open(outputfile1, mode="a", encoding="utf=8") as f:
-            for page in features:
-                outputline = ""
-                for attribute in sorted(nominalattributes):
-                    outputline = outputline + page[attribute] + ","
-                for attribute in sorted(numericattributes):
-                    outputline = outputline + str(page[attribute]) + ","
-                outputline = outputline + page["class"] + "\n"
-                f.write(outputline)
-
-    foldcounter += 1
+print("Done.\a")
 
