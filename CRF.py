@@ -88,7 +88,7 @@ nclass = 0
 pclass = 0
 
 
-outputfile = "/Users/tunder/JavaWorkspace/libraries/data/errors.arff"
+outputfile = "/Users/tunder/Dropbox/pagedata/errors.arff"
 
 nominalattributes = ["thisgenre", "prevgenre", "runupgenre", "nextgenre"]
 numericattributes = ["thislen", "prevlen", "nextlen", "dissent", "runupisprev", "runupisnext", "previsnext", "genreproportion", "runupproportion"]
@@ -102,7 +102,7 @@ with open(outputfile, mode="w", encoding="utf-8") as f:
         f.write("@ATTRIBUTE " + attribute + "\t{begin,end,ads,bio,dra,fic,poe,non,front,back}\n")
     for attribute in sorted(numericattributes):
         f.write("@ATTRIBUTE " + attribute + "\tNUMERIC\n")
-    f.write("@ATTRIBUTE id\tNUMERIC\n)
+    f.write("@ATTRIBUTE id\tNUMERIC\n")
     f.write("@ATTRIBUTE class\t{model,runnerup,prev,next}\n")
     f.write("\n")
     f.write("@DATA\n")
