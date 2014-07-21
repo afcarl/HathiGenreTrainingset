@@ -182,7 +182,7 @@ def nix_a_genre(firstthoughts, genretonix, secondthoughts):
 
 # BEGIN MAIN.
 
-def main(listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9", "forest", "bycallno", "forest2", "forest4"]):
+def main(listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9", "forest", "bycallno", "forest2", "forest7"]):
 
     genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio', 'toc': 'front', 'title': 'front', 'bookp': 'front', 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 'let': 'bio', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra', 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
 

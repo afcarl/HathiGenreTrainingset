@@ -15,6 +15,18 @@ def genresequal(truegenre, predictedgenre):
     else:
         return False
 
+def suspicious(genrea, genreb):
+	'''We take the view that small numbers of front and non pages
+	should be permitted to persist next to each other, because this
+	is often the case. Also, small numbers of front pages can occur anywhere.'''
+
+	if genrea == "front" and (genreb == "bio" or genreb == "non"):
+		return True
+	elif (genrea == "bio" or genrea == "non") and genreb == "front":
+		return True
+	else:
+		return False
+
 def genrevectorizer(genre):
 	global genrelist
 
@@ -182,7 +194,7 @@ class Triad:
 
 		return features
 
-	def prevequalsnext(self):
+	def relationalfeatures(self):
 		features = [0]
 
 		if genresequal(self.previous.genretype, self.next.genretype):
@@ -200,6 +212,17 @@ class Triad:
 
 	def getclass(self, groundtruth):
 
+		ruledout = False
+
+		if suspicious(self.previous.genretype, self.central.genretype):
+			ruledout = True
+
+		if self.central.getlen() > 3:
+			ruledout = True
+
+		if (self.previous.getlen() + self.next.getlen()) < (self.central.getlen() * 2):
+			ruledout = True
+
 		start = self.central.startpage
 		end = self.central.endpage
 
@@ -216,7 +239,7 @@ class Triad:
 				reallynext += 1
 
 		majority = self.central.getlen() / 2
-		if reallyitself >= majority:
+		if reallyitself >= majority or ruledout:
 			classval = 0
 		elif reallyprev > majority or reallynext > majority:
 			if reallyprev > reallynext:
@@ -235,15 +258,12 @@ class Triad:
 # 30. length of prev chunk
 # 31. length of this chunk
 # 32. length of next chunk
-# 33. avg dissent, prev chunk
-# 34. avg dissent, this chunk
-# 35. avg dissent, next chunk
-# 36. percent of runners-up that = prev
-# 37. percent of runners-up that = next
-# 38. does prev equal next?
-# 39. avg prob of previous genre
-# 40. avg prob of this genre
-# 41. avg prob of next genre
+# 33. percent of runners-up that = prev
+# 34. percent of runners-up that = next
+# 35. does prev equal next?
+# 36. avg prob of previous genre
+# 37. avg prob of this genre
+# 38. avg prob of next genre
 # 42. percent pages in this vol predicted to have prev genre
 # 43. percent pages in this vol predicted to have this genre
 # 44. percent pages in this vol predicted to have next genre
@@ -288,14 +308,14 @@ def gettriads(predictedgenres, runnersup, pageprobs, dissentseq, groundtruth):
 		# This information will tell us what to change if one of the triads is
 		# recognized as needing conversion.
 
-		features = tri.genrefeatures() + tri.lengthfeatures() + tri.runnerupfeatures(runnersup) + tri.prevequalsnext() + tri.probafeatures(pageprobs)
+		features = tri.genrefeatures() + tri.lengthfeatures() + tri.runnerupfeatures(runnersup) + tri.relationalfeatures() + tri.probafeatures(pageprobs)
 		# Those are all regular lists, so we're just concatenating them.
 
-		# morefeatures = [0] * 3
-		# morefeatures[0] = predictedgenres.count(tri.previous.genretype) / len(predictedgenres)
-		# morefeatures[1] = predictedgenres.count(tri.central.genretype) / len(predictedgenres)
-		# morefeatures[2] = predictedgenres.count(tri.next.genretype) / len(predictedgenres)
-		# features = features + morefeatures
+		morefeatures = [0] * 3
+		morefeatures[0] = predictedgenres.count(tri.previous.genretype) / len(predictedgenres)
+		morefeatures[1] = predictedgenres.count(tri.central.genretype) / len(predictedgenres)
+		morefeatures[2] = predictedgenres.count(tri.next.genretype) / len(predictedgenres)
+		features = features + morefeatures
 
 		featuresfortriads.append(features)
 

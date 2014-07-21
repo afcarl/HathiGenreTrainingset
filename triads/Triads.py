@@ -116,7 +116,7 @@ def normalize_dict(dictionary):
 	return newdictionary
 
 def most_urgent(listofprobabilities):
-	threshold = 0.4
+	threshold = 0.48
 	default = -1
 
 	for idx, genreprobs in enumerate(listofprobabilities):
@@ -173,7 +173,7 @@ volumeset = [x for x in consensus.keys()]
 # We need to divide the volumes into FOLDNUM subsets for crossvalidation.
 
 folds = dict()
-FOLDNUM = 10
+FOLDNUM = 6
 
 for fold in range(FOLDNUM):
 	folds[fold] = list()
@@ -220,7 +220,7 @@ for fold in range(FOLDNUM):
 
 	print("Features generated. Now training model.")
 
-	forest = RandomForestClassifier(n_estimators = 1000, max_features = 8)
+	forest = RandomForestClassifier(n_estimators = 800, max_features = 7)
 	forest = forest.fit(trainingfeatures, trainingclasses)
 
 	testfeatures = list()
