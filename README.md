@@ -1,7 +1,7 @@
 HathiTrust training data
 ==================
 
-This repo currently includes Python scripts that I am using to munge page-level training data for a project, "ÄúUnderstanding Genre in a Collection of a Million Volumes."Äù
+This repo currently includes Python scripts that I am using to munge page-level training data for a project, "Understanding Genre in a Collection of a Million Volumes."
 
 The actual classification scripts (in Java) are in [a different repo, intuitively named pages.](https://github.com/tedunderwood/pages)
 
