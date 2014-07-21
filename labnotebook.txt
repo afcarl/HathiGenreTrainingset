@@ -1,0 +1,130 @@
+Features to add
+
+Count commas, periods, quotation marks, exclamation points & question marks
+
+• Lines ending with punctuation other than a hyphen
+
+• Lines where either of the last two characters is a number.
+
+Mean of initial characters’ position in the alphabet, calculate distance from average mean, multiply that by number of lines, round to int, call it #alphabeticdeviation
+
+• Group certain numbers as “pricenumber” if they contain £ or $ or ¢ or end with s or d.
+
+• # of lines beginning with a personal name, or an alphabetic word not in dictionary, or (Sir, Mrs, Mr, Miss, Lady, Lord, Prince) (raw number of lines, don’t normalize)
+
+• # of lines beginning with a capitalized word that ends with a period / total number of lines
+
+• Maximum sequence of capitalized lines that are == or after the preceding capitalized line in the alphabet (Use both raw, and normalized by total number of capitalized lines).
+
+Multiplied features
+
+startwname * startwrubric
+
+Ideas for the immediate future:
+
+Produce a page-word table.
+
+Confusion matrix, and
+confusion matrix on words.
+
+Inter-rater reliability -- at the page level, and on words.
+
+Confusion matrix based on existing metadata!
+
+Page alignment with Hathi seqs.
+
+Solve the missing page in .norm.txt files
+
+Train classifiers on *parts* of the corpus. I.e., what does the division between fiction and nonfiction look like *within* volumes we have identified as mostly-fiction. What about mostly-drama? Can we, at the mostly-drama level, activate the vdr and pdr tags?
+
+LAB NOTEBOOK
+
+Things I tried that didn’t immediately work:
+
+Active learning didn’t seem to help. To be fair, I’ve only tried it with 18 vols. A larger trial is needed.
+
+Co-training with 200 vols didn’t seem to help.
+
+In both these cases it’s possible that I’m stretching the classifier by introducing real-world irregularities not present in the sample. In which case, these techniques could be helping more than they initially appear to. More testing is called for.
+
+Creating a separate travel category didn’t seem to help. Folding it into autobiography didn’t seem to help. Separating autobiography from biography didn’t seem to help. In all of these cases, it’s possible that the training set is too small.
+
+Training classifiers on chronological segments did not seem to improve accuracy. Training classifiers on sets of volumes known to be predominantly in certain genres did (cascade strategy). But the effect was small.
+
+SVM were not immediately better than logistic regression and were *very* slow to train at full size. Random Forests seemed to be a better complement.
+
+Training a model to guide segmentation, CRF-wise, was not actually better than the ad-hoc rules I invented in Coalescer.py. Possibility remains that those ad-hoc rules are not good out of sample.
+
+Deleted three volumes that were in French and obvs couldn’t be classified.
+
+Reclassified:
+
+yale.39002085614858
+The Harmony of Divine Attributes, 1815
+mysteriously got classified as fiction; changed to non
+
+umn.31951002281295l
+Memoirs of a Hindu, 1883
+got classified as biography, but is fiction
+
+uc2.ark+=13960=t1mg7h137
+The Wonder-Working Water Mill, 1791
+got classified as nonfiction, but is fiction
+
+loc.ark+=13960=t8z89rq3t
+Sketches of Jewish Life in History, 1873
+very trickily ambiguous, a lot of it is fictionalized history,
+but the division in toc between “characteristic sketches” and “historical sketches” provided a guideline. Had to recharacterize the “characteristic sketches” as fiction; student had made them non. Historical sketches remained non. Classifier had caught this.
+
+mdp.39015065785522
+The Poetical Works of John Milton with Notes of Various Authors, 1824
+Really, this is mostly nonfiction, with a few lines of verse on each page followed by copious notes. Students had classified as narrative poetry, verse drama, etc.; reclassified as all notes.
+
+Ambiguities:
+
+mdp.39015078550970
+Life and Surprising Adventures of Robinson Crusoe with a Biographical Account of Defoe, 1844
+Classifier goes back and forth between bio and fic throughout.
+
+nyp.33433075921019
+Dufief’s Nature Displayed in Her Mode of Teaching Language to Man
+Alternating passages of English and Spanish conversation. Classified as nonfiction. Classifier thinks it’s drama.
+
+mdp.39015023384137
+Music and Lyrics from the Psalms
+Classified as lyric; classifier thinks it’s nonfiction.
+
+mdp.39015073766977
+Travels and Adventures in Eastern Africa, 1836
+Correctly classified as travel. Classifier goes back and forth between bio, fic, and non.
+
+Defoe, Captain Singleton -- confused about whether it’s fiction or not.
+
+Swift, Gulliver’s Travels -- confused about whether it’s fiction.
+
+Biography written for children is often misclassified as fiction.
+
+uc2.ark+=13960=t77s7k930
+Dialogue Between Divers Eminent Persons of the Past and Present Age
+It’s fiction, but the classifier thinks it’s nonfiction.
+
+Index to Burns poems -- since it includes first lines, it tends to be interpreted as poetry.
+
+Active learning:
+
+Did an absolutely STUNNING job of identifying ambiguities in the collection. The #1 most uncertain volume was The Terrific Register; difficult to say whether this is historical fiction, true crime, or an almanac of bizzarerie.
+
+The second most uncertain volume was Madagascar, or Robert Drury’s journal, which has been the subject of scholarly debate -- is it nonfiction or a fiction by Defoe?
+
+The we get Chronicles of the Schönberg-Cotta Family, which is historical fiction, and Tremaine, which is a debate about free will and foreknowledge in the guise of fiction. In the latter case it’s really debatable whether this should be classified as fiction.
+
+Also Thackeray’s Paris and Irish sketch-books, which are, again, deeply confusing generically.
+
+Also Gough, “Platform Echoes,” a long argument for temperance illustrated by personal anecdotes and sketches. The line between this and, say, Tremaine is really blurry.
+
+Paul Fyfe ‏@pfyfe  1h
+@Ted_Underwood found these useful: M. Lauster's /Sketches of the C19th/ and A. Garcha /From Sketch to Novel
+
+A place where I actually disagree with catalogers: Frances Elliot, _Old Court Life in France,_ usually listed as nonfiction, and characterized for some reason in MARC as “Bibliographies,” is to my eyes historical fiction.
+
+Also “Chrismas Hours,” coded in controlfield 008 as not fiction is to my eyes fiction, though of a very didactic sort.
