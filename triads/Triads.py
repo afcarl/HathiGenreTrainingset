@@ -41,10 +41,13 @@ def are_equal(genrea, genreb):
 	similarity of two segments.'''
 
 	equivalent = {"non", "bio"}
+	alsoequivalent = {"ads", "front", "back"}
 
 	if genrea == genreb:
 		return True
 	elif genrea in equivalent and genreb in equivalent:
+		return True
+	elif genrea in alsoequivalent and genreb in alsoequivalent:
 		return True
 	else:
 		return False
@@ -237,8 +240,8 @@ for fold in range(FOLDNUM):
 		avgdissent = sum(dissentseq) / len(dissentseq)
 		print("Avg dissent = " + str(avgdissent))
 
-		if avgdissent > 0.3:
-			continue
+		# if avgdissent > 0.3:
+		# 	continue
 
 		volneedsfixing = True
 

@@ -8,9 +8,12 @@ genrelist = ["begin", "end", "ads", "bio", "dra", "fic", "poe", "non", "front", 
 
 def genresequal(truegenre, predictedgenre):
     arethesame = ["bio", "non"]
+    alsothesame = ["ads", "back"]
     if truegenre == predictedgenre:
         return True
     elif truegenre in arethesame and predictedgenre in arethesame:
+        return True
+    elif truegenre in alsothesame and predictedgenre in alsothesame:
         return True
     else:
         return False
@@ -223,6 +226,9 @@ class Triad:
 		if (self.previous.getlen() + self.next.getlen()) < (self.central.getlen() * 2):
 			ruledout = True
 
+		# if not genresequal(self.previous.genretype, self.next.genretype):
+		# 	ruledout = True
+
 		start = self.central.startpage
 		end = self.central.endpage
 
@@ -264,9 +270,9 @@ class Triad:
 # 36. avg prob of previous genre
 # 37. avg prob of this genre
 # 38. avg prob of next genre
-# 42. percent pages in this vol predicted to have prev genre
-# 43. percent pages in this vol predicted to have this genre
-# 44. percent pages in this vol predicted to have next genre
+# 39. percent pages in this vol predicted to have prev genre
+# 40. percent pages in this vol predicted to have this genre
+# 41. percent pages in this vol predicted to have next genre
 
 def gettriads(predictedgenres, runnersup, pageprobs, dissentseq, groundtruth):
 	''' Receives five lists, each of which contains information keyed to page
