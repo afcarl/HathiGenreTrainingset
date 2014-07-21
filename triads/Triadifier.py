@@ -6,6 +6,15 @@ from Coalescer import Chunk
 
 genrelist = ["begin", "end", "ads", "bio", "dra", "fic", "poe", "non", "front", "back"]
 
+def genresequal(truegenre, predictedgenre):
+    arethesame = ["bio", "non"]
+    if truegenre == predictedgenre:
+        return True
+    elif truegenre in arethesame and predictedgenre in arethesame:
+        return True
+    else:
+        return False
+
 def genrevectorizer(genre):
 	global genrelist
 
@@ -90,13 +99,24 @@ class Chunk:
 
 	def averagedissent(self, dissentseq):
 		if self.genretype == "begin" or self.genretype == "end":
-			return 0
+			return 1
 			# because these chunks will have start and end pages
 			# that are not in the sequence
 		else:
 			total = 0
 			for i in range(self.startpage, self.endpage):
 				total += dissentseq[i]
+			average = total / self.getlen()
+			return average
+
+	def averageprob(self, pageprobs):
+		if self.genretype == "begin" or self.genretype == "end":
+			return 1
+			# because these chunks may have no prob or len
+		else:
+			total = 0
+			for i in range(self.startpage, self.endpage):
+				total += pageprobs[i][self.genretype]
 			average = total / self.getlen()
 			return average
 
@@ -120,10 +140,14 @@ class Triad:
 
 	def lengthfeatures(self):
 
-		features = [0] * 3
+		features = [0] * 6
 		features[0] = self.previous.getlen()
 		features[1] = self.central.getlen()
 		features[2] = self.next.getlen()
+		features[3] = features[0] / features[1]
+		features[4] = features[2] / features[1]
+		if genresequal(self.previous.genretype, self.next.genretype):
+			features[5] = (features[0] + features[2]) / features[1]
 
 		return features
 
@@ -146,9 +170,9 @@ class Triad:
 		equalsnext = 0
 
 		for i in range(start, end):
-			if runnersup[i] == self.previous.genretype:
+			if genresequal(runnersup[i], self.previous.genretype):
 				equalsprev += 1
-			if runnersup[i] == self.next.genretype:
+			if genresequal(runnersup[i], self.next.genretype):
 				equalsnext += 1
 
 		features[0] = equalsprev / self.previous.getlen()
@@ -161,8 +185,16 @@ class Triad:
 	def prevequalsnext(self):
 		features = [0]
 
-		if self.previous.genretype == self.next.genretype:
+		if genresequal(self.previous.genretype, self.next.genretype):
 			features[0] = 1
+
+		return features
+
+	def probafeatures(self, pageprobs):
+		features = [0] * 3
+		features[0] = self.previous.averageprob(pageprobs)
+		features[1] = self.central.averageprob(pageprobs)
+		features[2] = self.next.averageprob(pageprobs)
 
 		return features
 
@@ -178,7 +210,7 @@ class Triad:
 		for i in range(start, end):
 			if groundtruth[i] == self.previous.genretype:
 				reallyprev += 1
-			if groundtruth[i] == self.central.genretype:
+			if genresequal(groundtruth[i], self.central.genretype):
 				reallyitself += 1
 			if groundtruth[i] == self.next.genretype:
 				reallynext += 1
@@ -209,9 +241,12 @@ class Triad:
 # 36. percent of runners-up that = prev
 # 37. percent of runners-up that = next
 # 38. does prev equal next?
-# 39. percent pages in this vol predicted to have prev genre
-# 40. percent pages in this vol predicted to have this genre
-# 41. percent pages in this vol predicted to have next genre
+# 39. avg prob of previous genre
+# 40. avg prob of this genre
+# 41. avg prob of next genre
+# 42. percent pages in this vol predicted to have prev genre
+# 43. percent pages in this vol predicted to have this genre
+# 44. percent pages in this vol predicted to have next genre
 
 def gettriads(predictedgenres, runnersup, pageprobs, dissentseq, groundtruth):
 	''' Receives five lists, each of which contains information keyed to page
@@ -245,22 +280,28 @@ def gettriads(predictedgenres, runnersup, pageprobs, dissentseq, groundtruth):
 
 	featuresfortriads = list()
 	classesfortriads = list()
+	instructions = list()
 
 	for tri in triadlist:
-		features = tri.genrefeatures() + tri.lengthfeatures() + tri.dissentfeatures(dissentseq) + tri.runnerupfeatures(runnersup) + tri.prevequalsnext()
+		instructiontuple = (tri.central.startpage, tri.central.endpage, tri.previous.genretype, tri.next.genretype)
+		instructions.append(instructiontuple)
+		# This information will tell us what to change if one of the triads is
+		# recognized as needing conversion.
+
+		features = tri.genrefeatures() + tri.lengthfeatures() + tri.runnerupfeatures(runnersup) + tri.prevequalsnext() + tri.probafeatures(pageprobs)
 		# Those are all regular lists, so we're just concatenating them.
 
-		morefeatures = [0] * 3
-		morefeatures[0] = predictedgenres.count(tri.previous.genretype) / len(predictedgenres)
-		morefeatures[1] = predictedgenres.count(tri.central.genretype) / len(predictedgenres)
-		morefeatures[2] = predictedgenres.count(tri.next.genretype) / len(predictedgenres)
-		features = features + morefeatures
+		# morefeatures = [0] * 3
+		# morefeatures[0] = predictedgenres.count(tri.previous.genretype) / len(predictedgenres)
+		# morefeatures[1] = predictedgenres.count(tri.central.genretype) / len(predictedgenres)
+		# morefeatures[2] = predictedgenres.count(tri.next.genretype) / len(predictedgenres)
+		# features = features + morefeatures
 
 		featuresfortriads.append(features)
 
-		classesfortriads.append(tri.getclass())
+		classesfortriads.append(tri.getclass(groundtruth))
 
-	return featuresfortriads, classesfortriads
+	return featuresfortriads, classesfortriads, instructions
 
 
 

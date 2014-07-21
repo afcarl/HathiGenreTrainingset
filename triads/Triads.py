@@ -49,6 +49,19 @@ def are_equal(genrea, genreb):
 	else:
 		return False
 
+def accuracy(predictedgenres, groundtruth):
+	numpages = len(predictedgenres)
+	accurate = 0
+	for i in range(numpages):
+		if are_equal(groundtruth[i], predictedgenres[i]):
+			accurate += 1
+	if numpages > 0:
+		accurate = accurate / numpages
+	else:
+		accurate = 0
+
+	return accurate
+
 def nexthighest(dictionary):
 	'''Returns the key with next-to-highest value in the
 	dictionary provided. Assumes numeric values and string
@@ -102,6 +115,17 @@ def normalize_dict(dictionary):
 
 	return newdictionary
 
+def most_urgent(listofprobabilities):
+	threshold = 0.4
+	default = -1
+
+	for idx, genreprobs in enumerate(listofprobabilities):
+		if genreprobs[0] < threshold:
+			threshold = genreprobs[0]
+			default = idx
+
+	return default
+
 # BEGIN MAIN.
 
 genrelist = ["begin", "end", "ads", "bio", "dra", "fic", "poe", "non", "front", "back"]
@@ -124,6 +148,18 @@ def genrevectorizer(genre):
 	vectorized[idx] = 1
 	return vectorized
 
+def totalaccuracy(consensus, groundtruths):
+	pred = list()
+	gt = list()
+	for htid, predictions in consensus.items():
+		pred.extend(predictions)
+		gt.extend(groundtruths[htid])
+
+	assert len(pred) == len(gt)
+	return accuracy(pred, gt)
+
+# BEGIN MAIN
+
 consensus, secondthoughts, pageprobsforfile, dissentsequences, groundtruths = EnsembleModule.main()
 
 assert len(consensus) == len(groundtruths)
@@ -137,7 +173,7 @@ volumeset = [x for x in consensus.keys()]
 # We need to divide the volumes into FOLDNUM subsets for crossvalidation.
 
 folds = dict()
-FOLDNUM = 5
+FOLDNUM = 10
 
 for fold in range(FOLDNUM):
 	folds[fold] = list()
@@ -145,6 +181,8 @@ for fold in range(FOLDNUM):
 for idx, htid in enumerate(volumeset):
 	remainder = idx % FOLDNUM
 	folds[remainder].append(htid)
+
+initialaccuracy = totalaccuracy(consensus, groundtruths)
 
 # Now we proceed to crossvalidation:
 
@@ -170,7 +208,7 @@ for fold in range(FOLDNUM):
 		dissentseq = dissentsequences[htid]
 		groundtruth = groundtruths[htid]
 
-		volfeatures, volclasses = Triadifier.gettriads(predictedgenres, runnersup, pageprobs, dissentseq, groundtruth)
+		volfeatures, volclasses, instructions = Triadifier.gettriads(predictedgenres, runnersup, pageprobs, dissentseq, groundtruth)
 		trainingfeatures.extend(volfeatures)
 		trainingclasses.extend(volclasses)
 
@@ -182,7 +220,7 @@ for fold in range(FOLDNUM):
 
 	print("Features generated. Now training model.")
 
-	forest = RandomForestClassifier(n_estimators = 100)
+	forest = RandomForestClassifier(n_estimators = 1000, max_features = 8)
 	forest = forest.fit(trainingfeatures, trainingclasses)
 
 	testfeatures = list()
@@ -194,25 +232,66 @@ for fold in range(FOLDNUM):
 		pageprobs = pageprobsforfile[htid]
 		dissentseq = dissentsequences[htid]
 		groundtruth = groundtruths[htid]
+		print()
+		print(htid + " initial: " + str(accuracy(predictedgenres, groundtruth)))
+		avgdissent = sum(dissentseq) / len(dissentseq)
+		print("Avg dissent = " + str(avgdissent))
 
-		volfeatures, volclasses = Triadifier.gettriads(predictedgenres, runnersup, pageprobs, dissentseq, groundtruth)
-		testfeatures.extend(volfeatures)
-		testclasses.extend(volclasses)
+		if avgdissent > 0.3:
+			continue
 
-	testfeatures = np.array(testfeatures, dtype= "float64")
-	testclasses = np.array(testclasses, dtype= "int64")
+		volneedsfixing = True
 
-	predictions = forest.predict(testfeatures)
+		while volneedsfixing:
 
-	truepredictions = 0
-	for idx, prediction in enumerate(predictions):
-		if prediction == testclasses[idx]:
-			truepredictions += 1
+			volfeatures, volclasses, instructions = Triadifier.gettriads(predictedgenres, runnersup, pageprobs, dissentseq, groundtruth)
+			#testfeatures.extend(volfeatures)
+			#testclasses.extend(volclasses)
+			volfeatures = np.array(volfeatures, dtype= "float64")
+			predictions = forest.predict_proba(volfeatures)
 
-	accuracy = truepredictions / len(predictions)
-	print()
-	print("Accuracy for fold " + str(fold) + " = " + str(accuracy))
-	print()
+			chunktofix = most_urgent(predictions)
+			if chunktofix < 0:
+				volneedsfixing = False
+			else:
+				instruction = instructions[chunktofix]
+				startpage = instruction[0]
+				endpage = instruction[1]
+				prevgenre = instruction[2]
+				nextgenre = instruction[3]
+				if predictions[chunktofix][1] > predictions[chunktofix][2]:
+					convertgenre = prevgenre
+				else:
+					convertgenre = nextgenre
+				for i in range(startpage, endpage):
+					wasgenre = predictedgenres[i]
+					predictedgenres[i] = convertgenre
+
+				print(htid + " " + wasgenre + " => " + convertgenre + " : " + str(accuracy(predictedgenres, groundtruth)))
+
+		consensus[htid] = predictedgenres
+
+
+	# testfeatures = np.array(testfeatures, dtype= "float64")
+	# testclasses = np.array(testclasses, dtype= "int64")
+
+	# predictions = forest.predict(testfeatures)
+
+	# truepredictions = 0
+	# for idx, prediction in enumerate(predictions):
+	# 	if prediction == testclasses[idx]:
+	# 		truepredictions += 1
+
+	# accuracy = truepredictions / len(predictions)
+	# print()
+	# print("Accuracy for fold " + str(fold) + " = " + str(accuracy))
+	# print()
+
+finalaccuracy = totalaccuracy(consensus, groundtruths)
+
+print()
+print("Initial accuracy: " + str(initialaccuracy))
+print("Final accuracy: " + str(finalaccuracy))
 
 print("Done.\a")
 
