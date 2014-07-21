@@ -1,0 +1,38 @@
+LabNotebook
+
+newfeatures - newfeatures4:
+
+Gradually removing structural features, changing ways of calculating the influence of call numbers
+
+newfeatures5 -- I removed call numbers altogether. Also removed some superfluous two-letter words in the vocabulary.
+
+newfeatures6 -- I removed other forms of metadata.
+
+newfeatures7 -- Put back the metadata features for fiction and biography. Seemed to help.
+
+newfeatures8 -- Took out periods, quotation marks, and endwpunct.
+
+newfeatures9 -- Used reducedvocabulary, 460-odd features. Ridge parameter 10. 9 folds.
+
+bydate -- reducedvocab2, 498 features. Ridge parameter 10. 9 folds.
+
+bycallno -- reducedvocab2, 499 features. Ridge parameter 32. 10 folds. Only one round of smoothing.
+
+svm - self-explanatory
+
+forest - first random forest model; best so far .937; reduced vocab, no call # features; one-vs-all
+
+forest2 - believe I may have enlarged the vocab - doubled the smoothing - made the model weaker 
+
+forest3 -- reduced vocab but added in call # features -- took out multiple smoothing -- didn’t suck .927
+
+forest4 - first random forest model that used multiclass directly -- still had call # features and reduced vocab .921. So far all models have had 100 or 110 trees, K 20 or 22.
+
+forest5 - Multiclass, 200 trees, 16 features each, enlarged (640) vocab, no call no info, single smoothing. 6fold. Decent results: .9322
+
+forest6 - Multiclass, 200 trees, 25 features each, enlarged (640) vocab, no call no info, single smoothing, added back (Math.abs(sumAllWords - meanWordsPerPage) / meanWordsPerPage) and endwpunct / textlines. Still 6fold. Better results: .9345
+
+forest7 - Pretty much as above, except 300 trees and 30 features. Switched to Weka 3.7.11 also. Rough .8896 smoothed .9406.
+
+forest8 - With Weka 3.7, RandomForests get parallelized, so let’s kick this up a notch. Larger vocab of 879 words; 1000 trees; 35 features per tree.
+
