@@ -34,5 +34,10 @@ forest6 - Multiclass, 200 trees, 25 features each, enlarged (640) vocab, no call
 
 forest7 - Pretty much as above, except 300 trees and 30 features. Switched to Weka 3.7.11 also. Rough .8896 smoothed .9406.
 
-forest8 - With Weka 3.7, RandomForests get parallelized, so let’s kick this up a notch. Larger vocab of 879 words; 1000 trees; 35 features per tree.
+forest8 - With Weka 3.7, RandomForests get parallelized, so let’s kick this up a notch. Larger vocab of 879 words; 1000 trees; 35 features per tree. .9344
 
+forest9 - Larger vocab; 500 trees, 50 features per tree. We also kicked out a couple of items from the training set that aren’t in English. .9415
+
+forest10 - Getting rid of more items from training set. Also added back in the “quotations” feature, which really appears not to help. .9402
+
+forest11 -- Took back out the quotations. Increased number of features per tree from 50 to 80. Did not help .93705
