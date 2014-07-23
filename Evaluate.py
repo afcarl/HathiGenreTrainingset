@@ -1,7 +1,7 @@
 # Evaluate page predictions
 # EvaluatePagePredicts.py
 
-import os
+import os, sys
 import numpy as np
 import pandas as pd
 from scipy.stats.stats import pearsonr
@@ -57,11 +57,16 @@ if user == "y":
 else:
 	countwords = False
 
-user = input("Separate index (y/n)? ")
-if user == "y":
-	genretranslations["index"] = "index"
-	genretranslations["gloss"] = "index"
-	genretranslations["bibli"] = "index"
+# user = input("Separate index (y/n)? ")
+# if user == "y":
+# 	genretranslations["index"] = "index"
+# 	genretranslations["gloss"] = "index"
+# 	genretranslations["bibli"] = "index"
+
+user = input("Old ground truth? ")
+if user == "n":
+	groundtruthdir = "/Users/tunder/Dropbox/pagedata/thirdfeatures/genremaps/"
+# else:
 
 tocoalesce = input("Coalesce? ")
 if tocoalesce == "y":
@@ -72,7 +77,13 @@ else:
 
 if countwords:
 	filewordcounts = dict()
-	with open("/Users/tunder/Dropbox/pagedata/pagelevelwordcounts.tsv", mode="r", encoding="utf-8") as f:
+
+	if groundtruthdir == "/Users/tunder/Dropbox/pagedata/thirdfeatures/genremaps/":
+		wordcountpath = "/Users/tunder/Dropbox/pagedata/thirdfeatures/pagelevelwordcounts.tsv"
+	else:
+		wordcountpath = "/Users/tunder/Dropbox/pagedata/pagelevelwordcounts.tsv"
+
+	with open(wordcountpath, mode="r", encoding="utf-8") as f:
 		filelines = f.readlines()
 
 	for line in filelines[1:]:
@@ -129,7 +140,12 @@ def genresareequal(truegenre, predictedgenre):
 
 def compare_two_lists(truelist, predicted, wordsperpage, whethertocountwords):
 	global genretranslations
-	assert(len(truelist) == len(predicted))
+	if len(truelist) != len(predicted):
+		print(len(truelist))
+		print(truelist[len(truelist) -2])
+		print(truelist[len(truelist) -1])
+		print(len(predicted))
+		sys.exit()
 
 	errorsbygenre = dict()
 	correctbygenre = dict()
@@ -203,6 +219,7 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 
 	for pfile, gtfile in matchedfilenames.items():
 		htid = gtfile[0:-4]
+
 		if htid in excludedhtidlist:
 			continue
 
@@ -292,6 +309,13 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 					adjustedlist = cascades.biography_cascade(adjustedlist)
 				elif probablyfiction and thefictiondir != "n":
 					adjustedlist, mainmodel = cascades.fiction_cascade(adjustedlist, mainmodel, fictionfilepath)
+
+		if len(smoothlist) != len(adjustedlist):
+			print("Already vitiated.")
+			print(len(smoothlist), smoothlist[len(smoothlist) -1])
+			print(len(adjustedlist), adjustedlist[len(adjustedlist) -1])
+			print(notfiction,notdrama,mostlydrapoe,probablybiography,probablyfiction)
+
 		if tocoalesce:
 			coalescedlist, numberofdistinctsequences = Coalescer.coalesce(adjustedlist)
 			# This function simplifies our prediction by looking for cases where a small
@@ -303,6 +327,9 @@ def evaluate_filelist(matchedfilenames, excludedhtidlist):
 		else:
 			coalescedlist = adjustedlist
 			dummy, numberofdistinctsequences = Coalescer.coalesce(adjustedlist)
+
+		if len(smoothlist) != len(coalescedlist):
+			print('vitiated now')
 
 		metadataconfirmation = cascades.metadata_check(htid, coalescedlist)
 		#  Now that we have adjusted

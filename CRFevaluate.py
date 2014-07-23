@@ -2,6 +2,7 @@
 
 import numpy
 import pandas
+import Coalescer
 
 def highestkey(dictionary):
     '''Returns the key with highest value in the
@@ -59,7 +60,7 @@ def decide(predicted, classes, method):
 	if method < - 0.015:
 		return "model"
 	else:
-		return defaultwithsafeguard(predicted, "model", method)
+		return defaultbelowthreshold(predicted, "model", method)
 
 def printconfusionmatrix(predicted):
 	confusion = pandas.DataFrame(predicted)
@@ -115,6 +116,28 @@ def getmatrix(setting):
 			predicted[classes[i]] = float(fields[i+1])
 		prediction = decide(predicted, classes, method = setting)
 		predictedbyactual[prediction][actual] += 1
+
+	microavg = printconfusionmatrix(predictedbyactual)
+	return microavg
+
+def getcoalescedmatrix(setting):
+	predictedbyactual = dict()
+	for aclass in classes:
+		predictedbyactual[aclass] = dict()
+		for anotherclass in classes:
+			predictedbyactual[aclass][anotherclass] = 0
+
+	actuality = list()
+	predictions = list()
+	for line in filelines:
+		line = line.rstrip()
+		fields = line.split("\t")
+		actuality.append(fields[0])
+		predicted = dict()
+		for i in range(0,4):
+			predicted[classes[i]] = float(fields[i+1])
+		prediction = decide(predicted, classes, method = setting)
+		predictions.append(prediction)
 
 	microavg = printconfusionmatrix(predictedbyactual)
 	return microavg

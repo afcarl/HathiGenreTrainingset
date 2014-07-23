@@ -236,15 +236,18 @@ def fiction_cascade(currentpredictions, mainmodel, fictiondir):
 
         fictionmodel = read_probabilities(fiction_probabilities)
 
-        numpages = len(fictionmodel)
-        if numpages > len(mainmodel):
-            numpages = len(mainmodel)
+        numpages = len(mainmodel)
+        limit = len(fictionmodel)
 
         mergedpredictions = list()
         mergedmodel = list()
 
         for i in range(numpages):
-            ficprobs = fictionmodel[i]
+            if i < limit:
+                ficprobs = fictionmodel[i]
+            else:
+                ficprobs = mainmodel[i]
+
             mainprobs = mainmodel[i]
             merged = dict()
             # merged will hold the new probabilities for each genre
@@ -295,15 +298,19 @@ def drapoe_cascade(currentpredictions, mainmodel, drapoepath):
 
         poetrymodel = read_probabilities(poetry_probabilities)
 
-        numpages = len(poetrymodel)
-        if numpages > len(mainmodel):
-            numpages = len(mainmodel)
+        limit = len(poetrymodel)
+
+        numpages = len(mainmodel)
 
         mergedpredictions = list()
         mergedmodel = list()
 
         for i in range(numpages):
-            poeprobs = poetrymodel[i]
+            if i < limit:
+                poeprobs = poetrymodel[i]
+            else:
+                poeprobs = mainmodel[i]
+
             mainprobs = mainmodel[i]
             merged = dict()
             # merged will hold the new probabilities for each genre

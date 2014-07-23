@@ -146,7 +146,7 @@ def choose_cascade(htid):
 
     return probablybiography, probablydrama, probablyfiction, probablypoetry, litprob, bioprob
 
-sourcedir = "/Users/tunder/Dropbox/pagedata/newfeatures/oldfeatures/"
+sourcedir = "/Users/tunder/Dropbox/pagedata/thirdfeatures/pagefeatures/"
 
 dirlist = os.listdir(sourcedir)
 
@@ -160,7 +160,7 @@ for filename in dirlist:
         stripped = filename[:-7]
         probablybiography, probablydrama, probablyfiction, probablypoetry, litprob, bioprob = choose_cascade(stripped)
 
-        outpath = "/Users/tunder/Dropbox/pagedata/newfeatures/pagefeatures/" + filename
+        outpath = "/Users/tunder/Dropbox/pagedata/thirdfeatures/trimfeatures/" + filename
 
         with open(outpath, mode="w", encoding="utf-8") as f:
             if probablybiography:

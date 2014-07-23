@@ -69,7 +69,7 @@ else:
 
 # compare directories
 
-listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9", "svm", "bycallno"]
+listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9", "forest", "bycallno", "forest4", "forest7"]
 
 predictroot = "/Volumes/TARDIS/output/"
 firstdir = predictroot + listofmodels[0] + "/"
@@ -158,6 +158,7 @@ for filename in validfiles:
 
 			versions.append(smoothlist)
 			versions.append(roughlist)
+			## I'm just giving the smooth models an edge here.
 		except:
 			pass
 	pageprobsforfile[filename] = pageprobs
