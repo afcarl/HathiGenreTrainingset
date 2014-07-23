@@ -41,3 +41,9 @@ forest9 - Larger vocab; 500 trees, 50 features per tree. We also kicked out a co
 forest10 - Getting rid of more items from training set. Also added back in the “quotations” feature, which really appears not to help. .9402
 
 forest11 -- Took back out the quotations. Increased number of features per tree from 50 to 80. Did not help .93705
+
+forest11b -- because I forgot to create 12 for it -- Took it back down to 32 features. Smoothed, .9343, coalesced .9400. I’m getting a sense that the sweet spot for features-per-tree is between 30 and 50.
+
+forest12 -- Different underlying dataset (switched to thirdfeatures). This means adding stdev of line lengths, as well as textline/totalline ratios, and upvoting header words. Kept everything else the same. Smoothed .9353, coalesced .9370. For some reason coalescing not helping much on this run.
+
+forest13 -- Kept everything the same but killed the stdev feature. Smoothed .9350, coalesced .9418. Starting to think that it’s dangerous to judge solely on coalesced, as I’ve been doing, because it has a fairly unpredictable relation to underlying classification accuracy.

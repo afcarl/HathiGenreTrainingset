@@ -1,4 +1,15 @@
-Features to add
+Practical notes on build process for test data:
+
+run NormalizeOCR testnumberX
+on the text files that are in /newfeatures/texts
+
+I believe I have already eliminated most of the inappropriately included non-English vols; you can check badfiles/ or frenchvols/ for ringers. I also think I’ve fixed genremap pagination using deprecated/FixPagination.py. But these are potential problems to be aware of in subsequent iterations.
+
+You will definitely need to run PageLevelWordCounter.py to generate a wordcounts file. You will also need to run MetadataFeatures in order to add metadata from MARC records to the pagefeatures.
+
+*********
+
+Features to add (from June, now out of date)
 
 Count commas, periods, quotation marks, exclamation points & question marks
 
@@ -51,11 +62,13 @@ Creating a separate travel category didn’t seem to help. Folding it into autob
 
 Training classifiers on chronological segments did not seem to improve accuracy. Training classifiers on sets of volumes known to be predominantly in certain genres did (cascade strategy). But the effect was small.
 
+Using call numbers explicitly as features did not help. Inferring genre probabilities from call numbers and using those *probabilities* as features, also did not help. Explicit genre metadata in MARC records helped only in the case of fiction and biography. Drama and poetry were too rare to help.
+
 SVM were not immediately better than logistic regression and were *very* slow to train at full size. Random Forests seemed to be a better complement.
 
 Training a model to guide segmentation, CRF-wise, was not actually better than the ad-hoc rules I invented in Coalescer.py. Possibility remains that those ad-hoc rules are not good out of sample.
 
-Deleted three volumes that were in French and obvs couldn’t be classified.
+Deleted seven volumes that were in languages other than English and obvs couldn’t be classified.
 
 Reclassified:
 
