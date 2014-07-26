@@ -47,3 +47,20 @@ forest11b -- because I forgot to create 12 for it -- Took it back down to 32 fea
 forest12 -- Different underlying dataset (switched to thirdfeatures). This means adding stdev of line lengths, as well as textline/totalline ratios, and upvoting header words. Kept everything else the same. Smoothed .9353, coalesced .9370. For some reason coalescing not helping much on this run.
 
 forest13 -- Kept everything the same but killed the stdev feature. Smoothed .9350, coalesced .9418. Starting to think that it’s dangerous to judge solely on coalesced, as I’ve been doing, because it has a fairly unpredictable relation to underlying classification accuracy.
+
+forest14 -- Yep. Coalesced is unreliable. Put back in *normalized* stdev, increased features to 40 (from 32).  Smoothed .9361, coalesced .9385. Actually that does seem to show that something about stdev is huring coalesce.
+
+forest15 -- Killed stdev again. Kept 40 features. Switched from thousandvocab to enlargedvocab, now with “preface” and “appendix” added as features. Smoothed .9360, coalesced .9404. Could be better with lower features, in proportion to smaller vocab. But now we’re quibbling about details.
+
+newlog0 -- switched back to logistic regression, with same vocab, ridge 32, still 6fold: smoothed .9276, coalesced .9377
+
+forest16 -- Switched from multiclass single forest to multiple runs of different one-vs-all forests. 22 features per tree, 642 features overall, 500 trees in each forest. Smoothed .9328. Coalesced .9375.
+
+production0 - I tried separating “index.” No success; even with multiclassforest, it brought accuracy down 1%.
+
+production1 -- Back to larger vocab, 32 features, 5fold crossvalidation, smoothed .9343, coalesced .9406. Okay. I’m actually ready to roll.
+
+production2 = Kept everything the same. 881 vocab. 32 features. -train -multiclassforest -troot /Users/tunder/Dropbox/pagedata/ -tbranch thirdfeatures -self -save -output /Volumes/TARDIS/output/production2/ -bio
+Didn’t work, because I had only implemented multiclassforest under crossvalidate. But trained a logistic model we can use.
+
+production3 = Second run with previous settings.
