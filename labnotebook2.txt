@@ -61,6 +61,46 @@ production0 - I tried separating “index.” No success; even with multiclassfo
 production1 -- Back to larger vocab, 32 features, 5fold crossvalidation, smoothed .9343, coalesced .9406. Okay. I’m actually ready to roll.
 
 production2 = Kept everything the same. 881 vocab. 32 features. -train -multiclassforest -troot /Users/tunder/Dropbox/pagedata/ -tbranch thirdfeatures -self -save -output /Volumes/TARDIS/output/production2/ -bio
-Didn’t work, because I had only implemented multiclassforest under crossvalidate. But trained a logistic model we can use.
+Didn’t work, because I had only implemented multiclassforest under crossvalidate. But trained a logistic model we can use, with 881 vocab and ridge 32.
 
 production3 = Second run with previous settings.
+
+production4= Tried outputjson, reducedvocabulary2; 20 features per tree.
+
+production5 = ensemble results
+-ensemble /Volumes/TARDIS/input/ensemble/ -local -toprocess /Users/tunder/Dropbox/pagedata/thirdfeatures/pagefeatures/ -output /Volumes/TARDIS/output/production5/ 
+
+production 6 = Multiclassforest; reducedvocab2; 499 features; 20 features per tree.
+
+production7 -- An ensemble produced with /Volumes/TARDIS/input/ensemble/production2logistic881.ser	logistic881	-onevsalllogistic
+/Volumes/TARDIS/input/ensemble/production3forest881.ser	forest881	-multiclassforest
+/Volumes/TARDIS/input/ensemble/production6forest500.ser	forest500	-multiclassforest
+
+forest17 -- 8fold crossvalidation of the model trained in production6. .9357/.9436
+
+newlog1 - 8fold crossvalidation of the model trained in production2.
+
+forest18 - 8fold crossvalidation of a slight variation on production3. newmethodvocabulary, 35 features per tree. .9358 / .9422
+
+newlog2 - 8fold, logistic, newmethodvocab, 936 features, ridge setting at “3.” 92.7 smoothed, 94.5 coalesced. It really kicks up the performance of the ensemble, from .9337/.942 to .9344/.9496. Notice that almost all this improvement is after coalescing, which suggests that the reduction of ridge parameter may be overfitting on individual pages in a way that nevertheless helps macroscopic performance.
+
+post1799 -- Partial model trained only on 19c texts. 8fold random forest, enlarged vocab (642 features), 27 features per tree, 500 trees.
+pre1850 -- Partial model trained only on 19c texts. 8fold random forest, enlarged vocab (642 features), 27 features per tree, 500 trees.
+
+These datasets are appx equal in size (about 200 vols). Pre1850 oddly does better than post 1799. Neither does great. When they are merged (dividing the set at 1820), we get lackluster results -- smoothed .916 coalesced .918.  Folding that model into the ensemble hurts the ensemble.
+
+Currently, good ensemble is: listofmodels = ["newlog1", "forest18", "forest17", "newlog2"]
+.9345 / .9504
+
+Trying: newlog3 -- reducedvocab2 (500 features), ridge setting 6, 8fold logistic. Smoothed .9145, coalesced .9134. Somewhat to my surprise, getting better results with more features on logistic. Might try even more! 
+
+Redid newlog3 with 1036 features. Kept ridge setting 6, 8fold logistic. Smoothed .927, coalesced .9383.
+
+newlog4 -- 1036 features, ridge parameter “1”, 8fold logistic. .9297 .9425
+
+listofmodels = ["newlog4", "forest18", "forest17", "newlog2"]
+.9342 / .9497
+
+forest19 - 1308 features; 38 features per tree; .9351 / .9403. Not enough improvement on forest 18, but perhaps I need more features per tree.
+
+newlog5 - 1308 features, ridge setting “2.”
