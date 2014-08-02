@@ -1,5 +1,40 @@
 LabNotebook
 
+vocabularies, sorted in order of size, where we also print the things that get *lost* rather than added each time we move up a size category. I’ve marked the ones I consider best.
+
+reducedvocabulary2.txt    ****
+500
+set()
+----------------
+enlargedvocabulary.txt   ****
+641
+{'op', 'money', 'z', 'io'}
+----------------
+enlargedvocabulary copy.txt
+648
+{'appendix', 'preface'}
+----------------
+thousandvocabulary.txt
+880
+{'lb', 'woodcuts', 'edges', 'pp', 'le', 'trans', 'cents', 'rh', 'honourable', 'siege', 'ab', 'port', 'ai', 'fcp', 'wines', 'heat', 'ditto', 'net', 'caesar', 'irish', 'eo', 'fort', 'don', 'seq', 'ant', 'oo', 'os', 'preached', 'sc', 'wine', 'п', 'archbishop', 'ode', 'december', 'dictionary', 'je', 'sermon'}
+----------------
+newmethodvocabulary.txt  ****
+935
+{'ç', 'ens', 'c', 'pro', 'í', 'а', 'ger', 'lie', 'ae', 'т', 'com', 'cut', 'imp', 'io', 'low', 'adj', 'opinion', 'г', 'adv', 'strong', 'clerk', 'с', 'um', 'performed', 'fifth', 'par'}
+----------------
+biggestvocabulary.txt   ****
+1036
+set()
+----------------
+reallybiggestvocabulary.txt
+1307
+set()
+----------------
+mergedvocabulary.txt
+1328
+set()
+----------------
+
 newfeatures - newfeatures4:
 
 Gradually removing structural features, changing ways of calculating the influence of call numbers
@@ -103,4 +138,25 @@ listofmodels = ["newlog4", "forest18", "forest17", "newlog2"]
 
 forest19 - 1308 features; 38 features per tree; .9351 / .9403. Not enough improvement on forest 18, but perhaps I need more features per tree.
 
-newlog5 - 1308 features, ridge setting “2.”
+newlog5 - 1308 features, 8fold logistic, ridge setting “2.” Smoothed .9247, coalesced .9429
+
+listofmodels = ["newlog1", "forest18", "forest17", "newlog2", "newlog5", "forest19"]
+smoothed .9333 coalesced .9478
+
+*********
+
+Okay, we’re going to create an ensemble based on this:
+listofmodels = ["newlog1", "forest18", "forest17", "newlog2"] .9345 / .9504
+
+That will require four models:
+
+production2 == newlog1. 881 vocab (thousandvocabulary), ridge setting 32.
+
+production9 == forest18; newmethodvocabulary (936 features); 35 features per tree.
+
+production6 == forest 17. Multiclassforest; reducedvocab2; 499 features; 20 features per tree.
+
+production8 == newlog2. 936 features (newmethodvocab), ridge setting 3.
+-train -troot /Users/tunder/Dropbox/pagedata/ -tbranch thirdfeatures -self -save -output /Volumes/TARDIS/output/production8/ -bio
+
+
