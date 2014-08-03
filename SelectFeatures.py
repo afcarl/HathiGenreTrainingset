@@ -37,8 +37,8 @@ def sortkeysbyvalue(lexicon, whethertoreverse = False):
 	return tuplelist
 
 
-genremapdir = "/Users/tunder/Dropbox/pagedata/mixedtraining/genremaps/"
-featuredir = "/Users/tunder/Dropbox/pagedata/mixedtraining/pagefeatures/"
+genremapdir = "/Users/tunder/Dropbox/pagedata/thirdfeatures/genremaps/"
+featuredir = "/Users/tunder/Dropbox/pagedata/thirdfeatures/pagefeatures/"
 
 genrefiles = os.listdir(genremapdir)
 featurefiles = os.listdir(featuredir)
@@ -133,7 +133,10 @@ for htid in htids:
 				# These are special structural features not to be included in the
 				# feature vocabulary.
 			else:
-				addtodict(word, 1, lexicon)
+				increment = count
+				if increment > 3:
+					increment = 3
+				addtodict(word, increment, lexicon)
 				# Changing this so words only get counted once
 
 mastervocab = dict()
@@ -149,7 +152,7 @@ for genre, lexicon in genrelexicons.items():
 	for i in range(maxfeatures):
 		print(sortedwords[i][1])
 
-	maxfeatures = 350
+	maxfeatures = 500
 	if len(sortedwords) < maxfeatures:
 		maxfeatures = len(sortedwords)
 
@@ -161,15 +164,15 @@ for genre, lexicon in genrelexicons.items():
 
 tuplelist = sortkeysbyvalue(mastervocab, whethertoreverse = True)
 vocabulary = [x[1] for x in tuplelist]
-vocabulary = vocabulary[:1000]
+vocabulary = vocabulary[:2000]
 
-wordstoadd = ["index", "glossary", "argument", "biographical", "memoir", "memoirs", "autobiography", "dramatis", "personae", "contents", "table", "arabicprice"]
+wordstoadd = ["index", "glossary", "argument", "biographical", "memoir", "memoirs", "autobiography", "dramatis", "personae", "contents", "table", "arabicprice", "appendix", "preface", "ode", "scene"]
 
 for word in wordstoadd:
 	if word not in vocabulary:
 		vocabulary.append(word)
 
-with open("/Users/tunder/Dropbox/pagedata/thousandvocabulary.txt", mode="w", encoding="utf-8") as f:
+with open("/Users/tunder/Dropbox/pagedata/reallybiggestvocabulary.txt", mode="w", encoding="utf-8") as f:
 	for word in vocabulary:
 		f.write(word + '\n')
 

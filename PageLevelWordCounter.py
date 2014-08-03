@@ -4,7 +4,7 @@ import os, sys
 
 import SonicScrewdriver as utils
 
-sourcedirectory = "/Users/tunder/Dropbox/pagedata/mixedtraining/pagefeatures/"
+sourcedirectory = "/Users/tunder/Dropbox/pagedata/thirdfeatures/pagefeatures/"
 
 dirlist = os.listdir(sourcedirectory)
 
@@ -42,18 +42,21 @@ for filename in validnames:
 	htid = filename[0:-7]
 	filedict[htid] = pagedict
 
-with open("/Users/tunder/Dropbox/pagedata/pagelevelwordcounts.tsv", mode="w", encoding="utf-8") as f:
+with open("/Users/tunder/Dropbox/pagedata/thirdfeatures/pagelevelwordcounts.tsv", mode="w", encoding="utf-8") as f:
 	f.write("htid\tpage\twordcount\n")
 	for htid, pagedict in filedict.items():
 		tuplelist = utils.sortvaluesbykey(pagedict)
 		counter = 0
 		for twotuple in tuplelist:
 			pagenum, count = twotuple
-			if pagenum != counter:
+			if pagenum < 0:
+				continue
+			elif pagenum != counter:
 				print("pagination anomaly")
-			counter += 1
-			outline = htid + "\t" + str(pagenum) + "\t" + str(count) + "\n"
-			f.write(outline)
+			else:
+				counter += 1
+				outline = htid + "\t" + str(pagenum) + "\t" + str(count) + "\n"
+				f.write(outline)
 
 
 

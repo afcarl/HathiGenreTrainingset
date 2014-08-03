@@ -44,9 +44,33 @@ if tocoalesce == "y":
 else:
 	tocoalesce = False
 
+# compare directories
+
+# listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9", "forest", "bycallno", "forest4", "forest7"]
+
+listofmodels = ["newlog1", "forest18", "forest17", "newlog2"]
+
+predictroot = "/Volumes/TARDIS/output/"
+firstdir = predictroot + listofmodels[0] + "/"
+predictfiles = os.listdir(firstdir)
+
+validfiles = list()
+
+for filename in predictfiles:
+	if filename.endswith(".predict"):
+		validfiles.append(filename)
+
+user = input("Use old ground truth? ")
+if user == "y":
+	groundtruthdir = "/Users/tunder/Dropbox/pagedata/newfeatures/genremaps/"
+	wordcountpath = "/Users/tunder/Dropbox/pagedata/pagelevelwordcounts.tsv"
+else:
+	groundtruthdir = "/Users/tunder/Dropbox/pagedata/thirdfeatures/genremaps/"
+	wordcountpath = "/Users/tunder/Dropbox/pagedata/thirdfeatures/pagelevelwordcounts.tsv"
+
 if countwords:
 	filewordcounts = dict()
-	with open("/Users/tunder/Dropbox/pagedata/pagelevelwordcounts.tsv", mode="r", encoding="utf-8") as f:
+	with open(wordcountpath, mode="r", encoding="utf-8") as f:
 		filelines = f.readlines()
 
 	for line in filelines[1:]:
@@ -66,22 +90,6 @@ if countwords:
 		# This just makes sure tuples are sorted in pagenum order.
 else:
 	filewordcounts = dict()
-
-# compare directories
-
-listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9", "forest", "bycallno", "forest4", "forest7"]
-
-predictroot = "/Volumes/TARDIS/output/"
-firstdir = predictroot + listofmodels[0] + "/"
-predictfiles = os.listdir(firstdir)
-
-validfiles = list()
-
-for filename in predictfiles:
-	if filename.endswith(".predict"):
-		validfiles.append(filename)
-
-groundtruthdir = "/Users/tunder/Dropbox/pagedata/newfeatures/genremaps/"
 
 groundtruthfiles = os.listdir(groundtruthdir)
 
@@ -120,6 +128,17 @@ def interpret_probabilities(listoffields):
 		probdict[genre] = probability
 	return probdict
 
+def normalize(probdict):
+	sumtotal = 0
+	listofkeys = list()
+	for key, value in probdict.items():
+		sumtotal += value
+		listofkeys.append(key)
+	for key in listofkeys:
+		probdict[key] = probdict[key]/sumtotal
+
+	return probdict
+
 dissensus = dict()
 pageprobsforfile = dict()
 
@@ -152,13 +171,15 @@ for filename in validfiles:
 				roughlist.append(rough)
 				if len(fields) > 5:
 					probdict = interpret_probabilities(fields[5:])
+					# probdict = normalize(probdict)
+					# make them all sum to 1
 					utils.add_dicts(probdict, pageprobs[i])
 					# This will add all the probabilities for this page to the
 					# record of per-page probabilities.
 
 			versions.append(smoothlist)
 			versions.append(roughlist)
-			## I'm just giving the smooth models an edge here.
+
 		except:
 			pass
 	pageprobsforfile[filename] = pageprobs
