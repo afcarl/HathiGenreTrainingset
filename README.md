@@ -17,6 +17,10 @@ Coalescer.py - Module that smooths predictions as part of Evaluate.
 
 Ensemble.py - Combines multiple models into an ensemble and assesses collective accuracy.
 
+MetadataFeatures.py - Script that adds global "metadata features" to the pagefeatures files.
+
+SelectFeatures.py - Script that I used to generate vocabularies.
+
 SonicScrewdriver.py - A collection of utilities.
 
 Triads
