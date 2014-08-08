@@ -9,6 +9,12 @@ You will definitely need to run PageLevelWordCounter.py to generate a wordcounts
 
 *********
 
+Most recent rebuild process:
+
+I didn't have to mess with genremaps or exclude volumes. Just ran MultiNormalizeOCR. Didn't have to run MetadataFeatures because I have integrated that into the OCR. Did have to add back in the "shameful hack" in MultiNormalizeOCR that skips two extra "libra" pages at the end of the file.
+
+*********
+
 Features to add (from June, now out of date)
 
 Count commas, periods, quotation marks, exclamation points & question marks

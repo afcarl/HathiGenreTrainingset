@@ -159,4 +159,30 @@ production6 == forest 17. Multiclassforest; reducedvocab2; 499 features; 20 feat
 production8 == newlog2. 936 features (newmethodvocab), ridge setting 3.
 -train -troot /Users/tunder/Dropbox/pagedata/ -tbranch thirdfeatures -self -save -output /Volumes/TARDIS/output/production8/ -bio
 
+Running ensemble:
+-ensemble /Volumes/TARDIS/input/ensemble/ -local -toprocess /Users/tunder/Dropbox/pagedata/thirdfeatures/pagefeatures/ -output /Volumes/TARDIS/output/ensemble2/ -bio
 
+====
+
+Rebuilding with new features that include #allcapswords
+
+forest20 -- Remaking forest17. Multiclass reducedvocab2, 501 features, 20 features per tree; 8fold, smoothed .9253, coalesced .9457.
+-train -multiclassforest -troot /Users/tunder/Dropbox/pagedata/ -tbranch thirdfeatures -self -cross 8 -output /Volumes/TARDIS/output/forest20/ -bio
+
+newlog 6 - Remaking newlog1. 881 features; thousandvocab. Ridge setting 32.
+-train -troot /Users/tunder/Dropbox/pagedata/ -tbranch thirdfeatures -self -cross 8 -output /Volumes/TARDIS/output/newlog6/ -bio
+.9304 / .9425
+
+newlog7 -- reduced features to 642, changed ridge to 20 -- .9227 / .9359. Not helping.
+
+newlog8 - 936 features, ridge 3; remaking newlog2 with allcapswords.
+.92907 / .9447
+
+go1 -- 881 features; thousandvocab. Ridge setting 32.txt
+-train -troot /Users/tunder/Dropbox/pagedata/ -tbranch thirdfeatures -self -save -output /Volumes/TARDIS/output/go1/ -bio
+
+go2 -- 936 features; newmethodvocab; multiclassforest; 35 features per tree.
+
+go3 -- multiclass, reducedvocab2, 20 features.
+
+go4 -- logistic, ridge setting 3, newmethodvocab.
