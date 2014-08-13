@@ -4,7 +4,7 @@ import os, sys
 
 import SonicScrewdriver as utils
 
-sourcedirectory = "/Users/tunder/Dropbox/pagedata/thirdfeatures/pagefeatures/"
+sourcedirectory = "/Users/tunder/Dropbox/pagedata/seventhfeatures/pagefeatures/"
 
 dirlist = os.listdir(sourcedirectory)
 
@@ -42,7 +42,7 @@ for filename in validnames:
 	htid = filename[0:-7]
 	filedict[htid] = pagedict
 
-with open("/Users/tunder/Dropbox/pagedata/thirdfeatures/pagelevelwordcounts.tsv", mode="w", encoding="utf-8") as f:
+with open("/Users/tunder/Dropbox/pagedata/seventhfeatures/pagelevelwordcounts.tsv", mode="w", encoding="utf-8") as f:
 	f.write("htid\tpage\twordcount\n")
 	for htid, pagedict in filedict.items():
 		tuplelist = utils.sortvaluesbykey(pagedict)

@@ -48,7 +48,7 @@ else:
 
 # listofmodels = ["newfeatures6", "newfeatures2", "newfeatures3", "newfeatures4", "newfeatures9", "forest", "bycallno", "forest4", "forest7"]
 
-listofmodels = ["newlog1", "forest18", "forest17", "newlog2"]
+listofmodels = ["forest18", "forest17", "newlog2"]
 
 predictroot = "/Volumes/TARDIS/output/"
 firstdir = predictroot + listofmodels[0] + "/"

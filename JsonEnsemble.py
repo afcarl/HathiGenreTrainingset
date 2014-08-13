@@ -24,6 +24,19 @@ def pairtreelabel(htid):
 
     return htid
 
+def get_ground_truth(filename):
+	global groundtruthfiles
+	if ".predict" not in filename:
+		return ""
+	htid = filename[0:-8]
+
+	groundtruthversion = htid + ".map"
+
+	if groundtruthversion not in groundtruthfiles:
+		return ""
+	else:
+		return groundtruthversion
+
 # genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio',
 # 'toc': 'front', 'title': 'front', 'bookp': 'front',
 # 'bibli': 'back', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non',
@@ -44,10 +57,13 @@ if tocoalesce == "y":
 else:
 	tocoalesce = False
 
-infolder = input("Directory of ensemble predictions? ")
+# infolder = input("Directory of ensemble predictions? ")
 
-predictroot = "/Volumes/TARDIS/output/"
-firstdir = predictroot + infolder + "/"
+# predictroot = "/Volumes/TARDIS/"
+# firstdir = predictroot + infolder + "/"
+
+firstdir = "/Users/tunder/Dropbox/pagedata/production/testsetnewpredicts/"
+#firstdir = "/Volumes/TARDIS/predicts/"
 predictfiles = os.listdir(firstdir)
 
 validfiles = list()
@@ -56,8 +72,13 @@ for filename in predictfiles:
 	if filename.endswith(".predict"):
 		validfiles.append(filename)
 
-groundtruthdir = "/Users/tunder/Dropbox/pagedata/thirdfeatures/genremaps/"
-wordcountpath = "/Users/tunder/Dropbox/pagedata/thirdfeatures/pagelevelwordcounts.tsv"
+user = input("Use main ground truth? ")
+if user == "y":
+	groundtruthdir = "/Users/tunder/Dropbox/pagedata/thirdfeatures/genremaps/"
+	wordcountpath = "/Users/tunder/Dropbox/pagedata/thirdfeatures/pagelevelwordcounts.tsv"
+else:
+	groundtruthdir = "/Users/tunder/Dropbox/pagedata/testmaps/"
+	wordcountpath = "/Users/tunder/Dropbox/pagedata/production/pagelevelwordcounts.tsv"
 
 if countwords:
 	filewordcounts = dict()
@@ -83,20 +104,6 @@ else:
 	filewordcounts = dict()
 
 groundtruthfiles = os.listdir(groundtruthdir)
-
-def get_ground_truth(filename):
-	global groundtruthfiles
-	if ".predict" not in filename:
-		return ""
-	htid = filename[0:-8]
-
-	groundtruthversion = htid + ".map"
-
-	if groundtruthversion not in groundtruthfiles:
-		print("Missing " + htid)
-		return ""
-	else:
-		return groundtruthversion
 
 matchedfilenames = dict()
 for filename in validfiles:

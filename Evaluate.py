@@ -39,8 +39,6 @@ groundtruthdir = "/Users/tunder/Dropbox/pagedata/newfeatures/genremaps/"
 # else:
 # 	groundtruthdir = "/Users/tunder/Dropbox/pagedata/mixedtraining/genremaps/"
 
-
-groundtruthfiles = os.listdir(groundtruthdir)
 predictfiles = os.listdir(predictdir)
 
 thefictiondir = input("Fiction dir? ")
@@ -66,7 +64,16 @@ if user == "y":
 user = input("Old ground truth? ")
 if user == "n":
 	groundtruthdir = "/Users/tunder/Dropbox/pagedata/thirdfeatures/genremaps/"
-# else:
+elif user == "fourth":
+	groundtruthdir = "/Users/tunder/Dropbox/pagedata/fourthfeatures/genremaps/"
+elif user == "fifth":
+	groundtruthdir = "/Users/tunder/Dropbox/pagedata/fifthfeatures/genremaps/"
+elif user == "sixth":
+	groundtruthdir = "/Users/tunder/Dropbox/pagedata/sixthfeatures/genremaps/"
+elif user == "seventh":
+	groundtruthdir = "/Users/tunder/Dropbox/pagedata/seventhfeatures/genremaps/"
+
+groundtruthfiles = os.listdir(groundtruthdir)
 
 tocoalesce = input("Coalesce? ")
 if tocoalesce == "y":
@@ -80,6 +87,14 @@ if countwords:
 
 	if groundtruthdir == "/Users/tunder/Dropbox/pagedata/thirdfeatures/genremaps/":
 		wordcountpath = "/Users/tunder/Dropbox/pagedata/thirdfeatures/pagelevelwordcounts.tsv"
+	elif groundtruthdir == "/Users/tunder/Dropbox/pagedata/fourthfeatures/genremaps/":
+		wordcountpath = "/Users/tunder/Dropbox/pagedata/fourthfeatures/pagelevelwordcounts.tsv"
+	elif groundtruthdir == "/Users/tunder/Dropbox/pagedata/fifthfeatures/genremaps/":
+		wordcountpath = "/Users/tunder/Dropbox/pagedata/fifthfeatures/pagelevelwordcounts.tsv"
+	elif groundtruthdir == "/Users/tunder/Dropbox/pagedata/sixthfeatures/genremaps/":
+		wordcountpath= "/Users/tunder/Dropbox/pagedata/sixthfeatures/pagelevelwordcounts.tsv"
+	elif groundtruthdir == "/Users/tunder/Dropbox/pagedata/seventhfeatures/genremaps/":
+		wordcountpath= "/Users/tunder/Dropbox/pagedata/seventhfeatures/pagelevelwordcounts.tsv"
 	else:
 		wordcountpath = "/Users/tunder/Dropbox/pagedata/pagelevelwordcounts.tsv"
 

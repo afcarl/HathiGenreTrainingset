@@ -1,5 +1,4 @@
-# Gather models into an ensemble.
-# Ensemble.py
+# Check two sets of pages for agreement.
 
 import os
 import glob
@@ -87,7 +86,7 @@ def pairtreelabel(htid):
 
     return htid
 
-firstfolder = "/Users/tunder/Dropbox/pagedata/production/sample/"
+firstfolder = "/Users/tunder/Dropbox/pagedata/production/oldfiles/"
 firstfiles = os.listdir(firstfolder)
 
 validfiles = [x for x in firstfiles if not x.startswith(".")]
@@ -98,7 +97,7 @@ for filename in validfiles:
 	firstpath = firstfolder + filename
 	with open(firstpath, encoding = "utf-8") as f:
 		fl1 = f.readlines()
-	secondpath = secondfolder + filename + ".pg.tsv"
+	secondpath = secondfolder + filename
 	try:
 		with open(secondpath, encoding = "utf-8") as f:
 			fl2 = f.readlines()

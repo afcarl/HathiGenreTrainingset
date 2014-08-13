@@ -192,15 +192,58 @@ def realign_map(maplines, oldpagenums):
 
 	return outlines
 
+def readjust(oldpagenums, seq1, seq2):
+	newalignment = list()
+
+	for idx, oldpg in enumerate(oldpagenums):
+		if oldpg > 0:
+			prevpg = oldpg -1
+		else:
+			prevpg = 0
+		if oldpg < (len(seq2) -1):
+			nextpg = oldpg + 1
+		else:
+			nextpg = (len(seq2) - 1)
+
+		thispg = seq1[idx]
+		prevmatch = dict_cosine(thispg, seq2[prevpg])
+		assumedmatch = dict_cosine(thispg, seq2[oldpg])
+		nextmatch = dict_cosine(thispg, seq2[nextpg])
+
+		if prevmatch > assumedmatch:
+			newalignment.append(prevpg)
+		elif nextmatch > assumedmatch:
+			newalignment.append(nextpg)
+		else:
+			newalignment.append(oldpg)
+
+	lastnumber = -1
+	sequential = True
+	for number in newalignment:
+		if number < lastnumber:
+			print("Error!")
+			sequential = False
+		lastnumber = number
+
+	if sequential:
+		oldpagenums = newalignment
+		changed = True
+	else:
+		changed = False
+
+	return oldpagenums, changed
+
 # MAIN
+
+sinistercases = list()
 
 oldfeatureinput = "/Users/tunder/Dropbox/pagedata/thirdfeatures/pagefeatures/"
 oldmapinput = "/Users/tunder/Dropbox/pagedata/thirdfeatures/genremaps/"
 
 newfeatureinput = "/Users/tunder/Dropbox/pagedata/production/oldfiles/"
 
-featureoutput = "/Users/tunder/Dropbox/pagedata/fourthfeatures/pagefeatures/"
-mapoutput = "/Users/tunder/Dropbox/pagedata/fourthfeatures/genremaps/"
+featureoutput = "/Users/tunder/Dropbox/pagedata/sixthfeatures/pagefeatures/"
+mapoutput = "/Users/tunder/Dropbox/pagedata/sixthfeatures/genremaps/"
 
 failurelist = list()
 
@@ -269,10 +312,10 @@ for filename in validfiles:
 
 			if succeed == False:
 				print("Could not align.")
-				print(ds2)
+				failure = max([ds1, ds2])
+				print(failure)
 				idx1 += 1
-				failuresinvol += ds2
-				failuresinvol += ds1
+				failuresinvol += failure
 				oldpagenums.append(idx2)
 				# In this case we continue by incrementing both indexes even though we
 				# couldn't find a good match for the old page in the new sequence.
@@ -292,6 +335,26 @@ for filename in validfiles:
 
 	lengthsequal = (len(oldpagenums) == len(seq1))
 
+	print("Failure ratio was :" + str((failuresinvol/volsize) * 100) + " %")
+	print("Lengths were equal: " + str(lengthsequal))
+
+	clone = [x for x in oldpagenums]
+	oldpagenums, changed = readjust(oldpagenums, seq1, seq2)
+
+	if changed:
+		print("Realignment worked.\a")
+		for old, new in zip(clone, oldpagenums):
+			if old != new:
+				flag = "  HERE "
+			else:
+				flag = ""
+			print(str(old) + "  :  " + str(new) + flag)
+		user = input("continue? ")
+
+
+	if (failuresinvol/volsize) * 100 > 1:
+		sinistercases.append(((failuresinvol/volsize) * 100, filename))
+
 	mapname = feature2map(filename)
 	if len(seq1) == len(seq2):
 		# If page lengths are the same, we can simply accept features based on
@@ -300,7 +363,7 @@ for filename in validfiles:
 		shutil.copyfile(newfeatureinput + filename, featureoutput + filename)
 		shutil.copyfile(oldmapinput + mapname, mapoutput + mapname)
 
-	elif lengthsequal and (failuresinvol/volsize * 100) < 0.2:
+	elif lengthsequal:
 		# We conclude that old and new feature files can be aligned reasonably
 		# reliably (failures involve less than 00.1% of words in the volume).
 		# This means we can again accept the new features.
@@ -319,12 +382,13 @@ for filename in validfiles:
 			for line in newmapfile:
 				f.write(line)
 
-	else:
+	#else:
 		# For one reason or another, we don't trust the new alignment.
-		# Stick with the old features.
+		# In fourthfeatures we included the old version. In fifthfeatures,
+		# we just drop these files.
 
-		shutil.copyfile(oldfeatureinput + filename, featureoutput + filename)
-		shutil.copyfile(oldmapinput + mapname, mapoutput + mapname)
+		# shutil.copyfile(oldfeatureinput + filename, featureoutput + filename)
+		# shutil.copyfile(oldmapinput + mapname, mapoutput + mapname)
 
 
 	failurelist.append((failuresinvol/volsize) * 100)
