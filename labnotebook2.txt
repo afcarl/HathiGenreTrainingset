@@ -186,3 +186,52 @@ go2 -- 936 features; newmethodvocab; multiclassforest; 35 features per tree.
 go3 -- multiclass, reducedvocab2, 20 features.
 
 go4 -- logistic, ridge setting 3, newmethodvocab.
+
+final1 - 881 features; thousandvocab. Ridge setting 27
+
+final2 - 936 features; newmethodvocab; 35 features per tree.
+
+final3 - 501 features; reducedvocab2; 20 features per tree.
+
+final4 - 936 features; newmethodvocab. Ridge setting 3.
+
+laplace2 - equivalent to final4 I think; ridge 3; 89.67 rough; 93.6 smoothed
+f2 - crossvalidated equiv to final2
+f3 - crossvalidates equiv to final3
+f1 = corssvalidates equiv to final1
+f5 - 936 features, logistic; 0.3 ridge; rough 89.68 / smoothed 93.71
+f6 - 936 features, logistic; 0.03 ridge; rough 89.69 / smoothed 93.73
+f7 - 936 features, logistic; 0.01 ridge; double smoothing; rough 89.7; smoothed 93.80; but coalesced goes down
+f8 - 1037 features (biggestvocabulary), logistic; 0.01 ridge; single smoothing; rough 89.79; smoothed 93.89; coalesced 94.77
+f9 - 1037 features; multiclassforest; 40 features per tree; single smoothing; rough 88.61; smoothed 92.44. Just not as good as logistic.
+f10 - changed bibli to == ads
+f11 - just switched to -cross 6 to test something
+f12 - 0.002 ridge; rough 89.795; smoothed 93.916 coalesced 94.796. At this point reducing the ridge is not really improving rough accuracy, but it is still improving smoothed accuracy.
+
+The final setting I used to create the first 18-19c production model (logistK1037a002.ser) was, as the name implies, 1037 features and ridge coefficient of 0.002
+
+I used the same settings to create a 1725-1923 production model (log1923K1037a002.ser, using the features in to1923features (minus the RL Stevenson file, which I pulled out explicitly because it hurt performance).
+
+The 5fold crossvalidated results were:
+
+                 dra        fic        non   paratext        poe     recall
+dra        6645782.0    52896.0    40438.0     2492.0    57594.0       97.7
+fic           2202.0  5248642.0   833759.0      972.0    23820.0       85.9
+non         291743.0   255420.0 19760554.0    71886.0   110504.0       96.4
+paratext     15896.0     4969.0   149396.0   724745.0    32711.0       78.1
+poe          33354.0    10277.0   112139.0     1819.0  2173973.0       93.2
+precision       95.1       94.2       94.6       90.4       90.6        0.0
+
+[6 rows x 6 columns]
+dra 	F1 = 96.3982553461
+fic 	F1 = 89.8617047204
+non 	F1 = 95.4929993537
+paratext 	F1 = 83.8034239673
+poe 	F1 = 91.9195613514
+
+ROUGH MICROACCURACY:
+0.8989825763190517
+SMOOTHED MICROACCURACY:
+0.9322464359263847
+COALESCED MICROACCURACY:
+0.9425967598926542

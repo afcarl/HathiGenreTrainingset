@@ -15,6 +15,22 @@ I didn't have to mess with genremaps or exclude volumes. Just ran MultiNormalize
 
 *********
 
+Even more recent rebuild processes (fifthfeatures, sixthfeatures)
+
+I decided that I needed to literally use features from the pairtree on the cluster, because the text-cleaning process on the cluster had been different, and even though I was using the same feature-extraction process I was getting different results. The problem with this was that blank pages had also been inserted, so I had to write PgAligner.py and BetterAligner.py to realign the genre maps with the new pagination.
+
+Fifthfeatures used crappy PgAligner.py. I suspect Sixthfeatures genremaps were produced with the BetterAligner.py. Seventhfeatures merged those with new training data using the fifty volumes I had tagged to assess out-of-sample accuracy, producing a new set of 370 volumes. I subsequently regenerated the pagefeatures in seventhfeatures, because the header upvoting was not helping in most cases. Restricted header upvoting to specialized terms that indicate genre.
+
+*********
+
+Creating a testset. I did this most recently by running production/Select2ndTestset.py on a slice of volumeIDs downloaded from the normalize dir on taub. This created newtestset.txt, which I uploaded to taub/python/pullpages. Given current settings on PathDictionary, "python3 PullTexts.py newtestset" pulls .norm.txt files into usesofscale/sampletexts. I then pulled those down into /newtest. At this point it's necessary to run newarffmaker.py in order to a) rename files by deleting the "norm" b) add an additional <pb>, and c) make an arff. Then you can load the arff into pagetaggerwithdependencies.jar.
+
+*********
+
+Creating 20cfeatures:
+
+Pulled down 20ctexts and created /pagemaps as per above. Converted .tsv to map using production/makemaps.py. 
+
 Features to add (from June, now out of date)
 
 Count commas, periods, quotation marks, exclamation points & question marks
