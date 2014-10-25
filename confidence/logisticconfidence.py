@@ -51,6 +51,33 @@ def count_flips(sequence):
 
     return numflips
 
+def normalizearray(featurearray):
+    '''Normalizes an array by centering on means and
+    scaling by standard deviations.
+    '''
+
+    numinstances, numfeatures = featurearray.shape
+    means = list()
+    stdevs = list()
+    for featureidx in range(numfeatures):
+        thiscolumn = featurearray[ : , featureidx]
+        thismean = np.mean(thiscolumn)
+        means.append(thismean)
+        thisstdev = np.std(thiscolumn)
+        stdevs.append(thisstdev)
+        featurearray[ : , featureidx] = (thiscolumn - thismean) / thisstdev
+
+    return featurearray
+
+def binarize(accuracies, threshold=0.95):
+    binarized = list()
+    for val in accuracies:
+        if val > threshold:
+            binarized.append(1)
+        else:
+            binarized.append(0)
+    return binarized
+
 class Prediction:
 
     def __init__(self, filepath):
@@ -65,14 +92,14 @@ class Prediction:
         self.maxprob = jsonobject['avgMaxProb']
         self.pagelen = len(self.smoothPredictions)
 
-        genrecounts, self.maxgenre = sequence_to_counts(self.smoothPredictions)
-        pagesinmax = genrecounts[self.maxgenre]
+        self.genrecounts, self.maxgenre = sequence_to_counts(self.smoothPredictions)
+        pagesinmax = self.genrecounts[self.maxgenre]
         self.maxratio = pagesinmax / self.pagelen
 
         self.rawflipratio = (count_flips(self.rawPredictions) / self.pagelen)
         self.smoothflips = count_flips(self.smoothPredictions)
 
-        if 'bio' in genrecounts and genrecounts['bio'] > (self.pagelen / 2):
+        if 'bio' in self.genrecounts and self.genrecounts['bio'] > (self.pagelen / 2):
             self.bioflag = True
         else:
             self.bioflag = False
@@ -141,6 +168,73 @@ class Prediction:
 
         return features
 
+    def genrefeatures(self, agenre):
+        ''' Extracts features to characterize the likelihood of accuracy in a
+        particular genre.
+        '''
+
+        if agenre in self.genrecounts:
+            pagesingenre = self.genrecounts[agenre]
+        else:
+            pagesingenre = 0
+
+        genreproportion = pagesingenre / self.pagelen
+
+        features = np.zeros(8)
+
+        if agenre == 'fic':
+
+            if 'Fiction' in self.genres or 'Novel' in self.genres or 'Short stories' in self.genres:
+                features[0] = 1
+
+            if 'Drama' in self.genres or 'Poetry' in self.genres or self.nonmetaflag:
+                features[1] = 1
+
+        if agenre == 'poe':
+
+            if 'Poetry' in self.genres or 'poems' in self.title.lower():
+                features[0] = 1
+
+            if 'Drama' in self.genres or 'Fiction' in self.genres or self.nonmetaflag:
+                features[1] = 1
+
+        if agenre == 'dra':
+
+            if 'Drama' in self.genres or 'plays' in self.title.lower():
+                features[0] = 1
+
+            if 'Fiction' in self.genres or 'Poetry' in self.genres or self.nonmetaflag:
+                features[1] = 1
+
+        features[2] = genreproportion
+        features[3] = self.rawflipratio
+        features[4] = self.smoothflips
+        features[5] = self.avggap
+        features[6] = self.maxprob
+        features[7] = self.maxratio
+
+        return features
+
+    def genreaccuracy(self, checkgenre, correctgenres):
+        truepositives = 0
+        falsepositives = 0
+
+        for idx, genre in enumerate(self.smoothPredictions):
+            if genre == checkgenre:
+
+                if correctgenres[idx] == checkgenre:
+                    truepositives += 1
+                else:
+                    falsepositives += 1
+
+        if (truepositives + falsepositives) > 0:
+            precision = truepositives / (truepositives + falsepositives)
+        else:
+            precision = 1000
+            # which we shall agree is a signal that this is meaningless
+
+        return precision
+
     def match(self, correctgenres):
         assert len(correctgenres) == len(self.smoothPredictions)
         matches = 0
@@ -165,7 +259,7 @@ class Prediction:
         fictionFN = 0
 
         assert len(correctgenres) == len(self.smoothPredictions)
-        matches = 0
+
         for idx, genre in enumerate(self.smoothPredictions):
 
             if correctgenres[idx] == 'poe':
@@ -209,9 +303,49 @@ class Prediction:
 
         return matches
 
+def leave1out(xmatrix, yarray, tolparameter = 1):
+    ''' Does leave-one-out crossvalidation for a given matrix
+    of features and array of y values. Uses regularized
+    logistic regression.
+    '''
+    predictions = np.zeros(len(xmatrix))
 
+    for i in range(0, len(xmatrix)):
+        trainingset = pd.concat([xmatrix[0:i], xmatrix[i+1:]])
+        trainingacc = yarray[0:i] + yarray[i+1:]
+        testset = xmatrix[i: i + 1]
+        newmodel = LogisticRegression(C = tolparameter)
+        newmodel.fit(trainingset, trainingacc)
+
+        predict = newmodel.predict_proba(testset)[0][1]
+        predictions[i] = predict
+
+    return predictions
+
+def unpack(predictions, listofmodeledvols):
+    ''' This unpacks a list of predictions made on a subset of
+    the data, by aligning the predictions with the indexes of
+    True values in listofmodeledvols.
+    '''
+    unpacked = np.zeros(len(listofmodeledvols))
+    assert sum(listofmodeledvols) == len(predictions)
+
+    # I.e., there should be as many True values in that list
+    # as there are values in predictions.
+
+    ctr = 0
+    for idx, wasmodeled in enumerate(listofmodeledvols):
+        if wasmodeled:
+            unpacked[idx] = predictions[ctr]
+            ctr += 1
+
+    return unpacked
 
 # Begin main script.
+
+TOL = 0.2
+
+genrestocheck = ['dra', 'fic', 'poe']
 
 metadatapath = '/Volumes/TARDIS/work/metadata/MergedMonographs.tsv'
 rows, columns, table = utils.readtsv(metadatapath)
@@ -240,6 +374,11 @@ fictionTPs = list()
 fictionFPs = list()
 fictionTNs = list()
 fictionFNs = list()
+
+genrefeatures = dict()
+genreprecisions = dict()
+
+modeledvols = dict()
 
 for filename in predicts:
     mapname = filename.replace('.predict', '.map')
@@ -315,8 +454,32 @@ for filename in predicts:
     fictionTNs.append(fictionTN)
     fictionFNs.append(fictionFN)
 
+    for genre in genrestocheck:
+        precision = predicted.genreaccuracy(genre, correctgenres)
+        if precision <= 1:
+            utils.appendtodict(genre, predicted.genrefeatures(genre), genrefeatures)
+            utils.appendtodict(genre, precision, genreprecisions)
+            utils.appendtodict(genre, True, modeledvols)
+        else:
+            utils.appendtodict(genre, False, modeledvols)
+            # Precision > 1 is a signal that we actually have no true or false
+            # positives in the volume for this genre. In that circumstance, we're
+            # not going to use the volume to train a metamodel for the genre, because
+            # it won't usefully guide what we want to guide -- assessment of the
+            # accuracy of our positive predictions for this genre.
+            #
+            # So we don't append the genre features or precision to the arrays
+            # that are going to be used to create a genre-specific metamodel.
+            #
+            # On the other hand, there could be false negatives in the volume, and
+            # we want to acknowledge that when calculating overall recall.
+            #
+            # SO what we do is create a list of "modeledvols" for each genre. Then
+            # we can unpack the predictions of the model and distribute them back
+            # into a longer array that covers all volumes, with negative
+            # predictions for vols that have no
+
 featurearray = np.array(allfeatures)
-numinstances, numfeatures = featurearray.shape
 correctpages = np.array(correctpages)
 totalpages = np.array(totalpages)
 
@@ -330,30 +493,20 @@ fictionFPs = np.array(fictionFPs)
 fictionTNs = np.array(fictionTNs)
 fictionFNs = np.array(fictionFNs)
 
+# We also need to unpack the versions of these arrays that are keyed to the special models
+# created for poetry and fiction volumes. (We need different versions because these models
+# will have a different length, since they only contain files)
+
 # Now let's normalize features by centering on mean and scaling
 # by standard deviation
 
-means = list()
-stdevs = list()
-
-for featureidx in range(numfeatures):
-    thiscolumn = featurearray[ : , featureidx]
-    thismean = np.mean(thiscolumn)
-    means.append(thismean)
-    thisstdev = np.std(thiscolumn)
-    stdevs.append(thisstdev)
-    featurearray[ : , featureidx] = (thiscolumn - thismean) / thisstdev
+featurearray = normalizearray(featurearray)
 
 data = pd.DataFrame(featurearray)
 
-binarized = list()
-for val in accuracies:
-    if val > 0.95:
-        binarized.append(1)
-    else:
-        binarized.append(0)
+binarized = binarize(accuracies, threshold=0.95)
 
-logisticmodel = LogisticRegression(C = 0.2)
+logisticmodel = LogisticRegression(C = TOL)
 logisticmodel.fit(data, binarized)
 
 featurelist = ['confirmfic', 'denyfic', 'confirmpoe', 'denypoe', 'confirmdra', 'denydra', 'confirmnon', 'denynon', 'maxratio', 'rawflipratio', 'smoothflips', 'avggap', 'maxprob']
@@ -375,7 +528,7 @@ for i in range(0, len(data)):
     trainingset = pd.concat([data[0:i], data[i+1:]])
     trainingacc = binarized[0:i] + binarized[i+1:]
     testset = data[i: i + 1]
-    newmodel = LogisticRegression(C = 0.2)
+    newmodel = LogisticRegression(C = TOL)
     newmodel.fit(trainingset, trainingacc)
 
     predict = newmodel.predict_proba(testset)[0][1]
@@ -384,6 +537,17 @@ for i in range(0, len(data)):
 print()
 print('Pearson for test set:' )
 print(pearsonr(predictions, accuracies))
+
+genrepredictions = dict()
+unpackedpredictions = dict()
+
+for genre in genrestocheck:
+    genrearray = np.array(genrefeatures[genre])
+    genrearray = normalizearray(genrearray)
+    gdata = pd.DataFrame(genrearray)
+    gbinary = binarize(genreprecisions[genre], threshold=0.95)
+    genrepredictions[genre] = leave1out(gdata, gbinary, tolparameter = TOL)
+    unpackedpredictions[genre] = unpack(genrepredictions[genre], modeledvols[genre])
 
 def testtwo(aseq, bseq, thresh):
     bothfail = 0
@@ -423,8 +587,8 @@ def precision(genreTP, genreFP, genreTN, genreFN, predictions, threshold):
 
     precision = truepos / (truepos + falsepos)
 
-    falsenegs = np.sum(genreFN[predictions > threshold])
-    missednegs = np.sum(genreTP[predictions <= threshold])
+    falsenegs = np.sum(genreFN[predictions >= threshold])
+    missednegs = np.sum(genreTP[predictions < threshold])
 
     totalfalsenegs = falsenegs + missednegs
 
