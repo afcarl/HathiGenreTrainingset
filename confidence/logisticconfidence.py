@@ -316,9 +316,17 @@ def leave1out(xmatrix, yarray, tolparameter = 1):
         testset = xmatrix[i: i + 1]
         newmodel = LogisticRegression(C = tolparameter)
         newmodel.fit(trainingset, trainingacc)
-
         predict = newmodel.predict_proba(testset)[0][1]
         predictions[i] = predict
+
+    featurelist = ['confirm', 'deny', 'thisgenre', 'rawflipratio', 'smoothflips', 'avggap', 'maxprob', 'maxgenre']
+
+    coefficients = list(zip(newmodel.coef_[0], featurelist))
+    coefficients.sort()
+    for coefficient, word in coefficients:
+        print(word + " :  " + str(coefficient))
+
+    print("Leave one out pearson: " + str(pearsonr(yarray, predictions)))
 
     return predictions
 
@@ -344,6 +352,7 @@ def unpack(predictions, listofmodeledvols):
 # Begin main script.
 
 TOL = 0.2
+THRESH = 0.94
 
 genrestocheck = ['dra', 'fic', 'poe']
 
@@ -504,7 +513,7 @@ featurearray = normalizearray(featurearray)
 
 data = pd.DataFrame(featurearray)
 
-binarized = binarize(accuracies, threshold=0.95)
+binarized = binarize(accuracies, threshold = THRESH)
 
 logisticmodel = LogisticRegression(C = TOL)
 logisticmodel.fit(data, binarized)
@@ -542,10 +551,11 @@ genrepredictions = dict()
 unpackedpredictions = dict()
 
 for genre in genrestocheck:
+    print(genre)
     genrearray = np.array(genrefeatures[genre])
     genrearray = normalizearray(genrearray)
     gdata = pd.DataFrame(genrearray)
-    gbinary = binarize(genreprecisions[genre], threshold=0.95)
+    gbinary = binarize(genreprecisions[genre], threshold= THRESH)
     genrepredictions[genre] = leave1out(gdata, gbinary, tolparameter = TOL)
     unpackedpredictions[genre] = unpack(genrepredictions[genre], modeledvols[genre])
 
