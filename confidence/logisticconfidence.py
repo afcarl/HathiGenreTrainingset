@@ -152,7 +152,47 @@ class Prediction:
             elif correctgenres[idx] == 'non' and genre == 'bio':
                 matches += 1
 
-        return matches / self.pagelen
+        return matches / self.pagelen, matches, self.pagelen
+
+    def matchgenres(self, correctgenres):
+        poetryTP = 0
+        poetryFP = 0
+        poetryTN = 0
+        poetryFN = 0
+        fictionTP = 0
+        fictionFP = 0
+        fictionTN = 0
+        fictionFN = 0
+
+        assert len(correctgenres) == len(self.smoothPredictions)
+        matches = 0
+        for idx, genre in enumerate(self.smoothPredictions):
+
+            if correctgenres[idx] == 'poe':
+                if genre == 'poe':
+                    poetryTP += 1
+                else:
+                    poetryFN += 1
+
+            if correctgenres[idx] != 'poe':
+                if genre == 'poe':
+                    poetryFP += 1
+                else:
+                    poetryTN += 1
+
+            if correctgenres[idx] == 'fic':
+                if genre == 'fic':
+                    fictionTP += 1
+                else:
+                    fictionFN += 1
+
+            if correctgenres[idx] != 'fic':
+                if genre == 'fic':
+                    fictionFP += 1
+                else:
+                    fictionTN += 1
+
+        return poetryTP, poetryFP, poetryTN, poetryFN, fictionTP, fictionFP, fictionTN, fictionFN
 
     def matchvector(self, correctgenres):
         assert len(correctgenres) == len(self.smoothPredictions)
@@ -182,12 +222,24 @@ secondsource = "/Users/tunder/Dropbox/pagedata/seventhfeatures/genremaps/"
 firstmaps = os.listdir(firstsource)
 secondmaps = os.listdir(secondsource)
 
-predictsource = '/Users/tunder/Dropbox/pagedata/production/predicts/'
+predictsource = '/Users/tunder/Dropbox/pagedata/production/crosspredicts/'
 
 predicts = os.listdir(predictsource)
+predicts = [x for x in predicts if not x.startswith('.')]
 
 allfeatures = list()
 accuracies = list()
+correctpages = list()
+totalpages = list()
+
+poetryTPs = list()
+poetryFPs = list()
+poetryTNs = list()
+poetryFNs = list()
+fictionTPs = list()
+fictionFPs = list()
+fictionTNs = list()
+fictionFNs = list()
 
 for filename in predicts:
     mapname = filename.replace('.predict', '.map')
@@ -245,12 +297,38 @@ for filename in predicts:
     # accuracies.append(matchpercent)
 
 
-    proportion = predicted.match(correctgenres)
+    proportion, correct, total = predicted.match(correctgenres)
     accuracies.append(proportion)
+    correctpages.append(correct)
+    totalpages.append(total)
     allfeatures.append(predicted.getfeatures())
+
+    poetryTP, poetryFP, poetryTN, poetryFN, fictionTP, fictionFP, fictionTN, fictionFN = predicted.matchgenres(correctgenres)
+
+    poetryTPs.append(poetryTP)
+    poetryFPs.append(poetryFP)
+    poetryTNs.append(poetryTN)
+    poetryFNs.append(poetryFN)
+
+    fictionTPs.append(fictionTP)
+    fictionFPs.append(fictionFP)
+    fictionTNs.append(fictionTN)
+    fictionFNs.append(fictionFN)
 
 featurearray = np.array(allfeatures)
 numinstances, numfeatures = featurearray.shape
+correctpages = np.array(correctpages)
+totalpages = np.array(totalpages)
+
+poetryTPs = np.array(poetryTPs)
+poetryFPs = np.array(poetryFPs)
+poetryTNs = np.array(poetryTNs)
+poetryFNs = np.array(poetryFNs)
+
+fictionTPs = np.array(fictionTPs)
+fictionFPs = np.array(fictionFPs)
+fictionTNs = np.array(fictionTNs)
+fictionFNs = np.array(fictionFNs)
 
 # Now let's normalize features by centering on mean and scaling
 # by standard deviation
@@ -268,8 +346,15 @@ for featureidx in range(numfeatures):
 
 data = pd.DataFrame(featurearray)
 
-logisticmodel = LogisticRegression(C = 1)
-logisticmodel.fit(data, accuracies)
+binarized = list()
+for val in accuracies:
+    if val > 0.95:
+        binarized.append(1)
+    else:
+        binarized.append(0)
+
+logisticmodel = LogisticRegression(C = 0.2)
+logisticmodel.fit(data, binarized)
 
 featurelist = ['confirmfic', 'denyfic', 'confirmpoe', 'denypoe', 'confirmdra', 'denydra', 'confirmnon', 'denynon', 'maxratio', 'rawflipratio', 'smoothflips', 'avggap', 'maxprob']
 
@@ -280,7 +365,7 @@ coefficients.sort()
 for coefficient, word in coefficients:
     print(word + " :  " + str(coefficient))
 
-selfpredictions = logisticmodel.predict(data)
+selfpredictions = logisticmodel.predict_proba(data)[ : , 1]
 print("Pearson for whole data: ")
 print(pearsonr(accuracies, selfpredictions))
 
@@ -288,21 +373,17 @@ predictions = np.zeros(len(data))
 
 for i in range(0, len(data)):
     trainingset = pd.concat([data[0:i], data[i+1:]])
-    trainingacc = accuracies[0:i] + accuracies[i+1:]
+    trainingacc = binarized[0:i] + binarized[i+1:]
     testset = data[i: i + 1]
-    newmodel = LogisticRegression(C = 0.1)
+    newmodel = LogisticRegression(C = 0.2)
     newmodel.fit(trainingset, trainingacc)
 
-    predict = newmodel.predict(testset)
-    predictions[i] = predict[0]
+    predict = newmodel.predict_proba(testset)[0][1]
+    predictions[i] = predict
 
 print()
 print('Pearson for test set:' )
 print(pearsonr(predictions, accuracies))
-
-# I realize this isn't technically a perfect cross-validation, because the
-# 13 data rows beyond 400 never get tested. But jeez. We're just getting
-# a ballpark estimate here.
 
 def testtwo(aseq, bseq, thresh):
     bothfail = 0
@@ -326,7 +407,31 @@ def testtwo(aseq, bseq, thresh):
 
     return c / len(aseq), afail, bfail, bothfail
 
+def corpusaccuracy(predictions, correctpages, totalpages, threshold):
+    allcorrect = np.sum(correctpages[predictions > threshold])
+    alltotal = np.sum(totalpages[predictions > threshold])
+    return allcorrect / alltotal
 
+def corpusrecall(predictions, correctpages, totalpages, threshold):
+    missedcorrect = np.sum(correctpages[predictions < threshold])
+    correcttotal = np.sum(correctpages)
+    return missedcorrect / correcttotal
 
+def precision(genreTP, genreFP, genreTN, genreFN, predictions, threshold):
+    truepos = np.sum(genreTP[predictions>threshold])
+    falsepos = np.sum(genreFP[predictions>threshold])
+
+    precision = truepos / (truepos + falsepos)
+
+    falsenegs = np.sum(genreFN[predictions > threshold])
+    missednegs = np.sum(genreTP[predictions <= threshold])
+
+    totalfalsenegs = falsenegs + missednegs
+
+    # Because the threshold also cuts things off.
+
+    recall = truepos / (truepos + totalfalsenegs)
+
+    return precision, recall
 
 

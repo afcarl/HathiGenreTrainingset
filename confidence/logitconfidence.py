@@ -8,11 +8,31 @@ import os, sys
 import numpy as np
 import pandas as pd
 import SonicScrewdriver as utils
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression
 from sklearn import cross_validation
 from scipy.stats.stats import pearsonr
 
 genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio', 'toc': 'front', 'title': 'front', 'bookp': 'front', 'bibli': 'ads', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 'let': 'bio', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra', 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
+
+def logit(p):
+    newarray = np.log(p) - np.log(1 - p)
+    for i, value in enumerate(newarray):
+        if np.isinf(value):
+            newarray[i] = 5
+        if value > 5:
+            newarray[i] = 5
+    return newarray
+
+def inv_logit(p):
+    newlist = list()
+    for aval in p:
+        if aval < -5:
+            newlist.append(0)
+        elif aval > 5:
+            newlist.append(.99)
+        else:
+            newlist.append( np.exp(aval) / (1 + np.exp(aval)) )
+    return np.array(newlist)
 
 def sequence_to_counts(genresequence):
     '''Converts a sequence of page-level predictions to
@@ -268,63 +288,49 @@ for featureidx in range(numfeatures):
 
 data = pd.DataFrame(featurearray)
 
-logisticmodel = LogisticRegression(C = 1)
-logisticmodel.fit(data, accuracies)
+model = LinearRegression()
+logitacc = logit(np.array(accuracies))
+model.fit(data, logitacc)
 
 featurelist = ['confirmfic', 'denyfic', 'confirmpoe', 'denypoe', 'confirmdra', 'denydra', 'confirmnon', 'denynon', 'maxratio', 'rawflipratio', 'smoothflips', 'avggap', 'maxprob']
 
 # featurelist = ['maxratio', 'rawflipratio', 'smoothflips', 'avggap', 'maxprob']
 
-coefficients = list(zip(logisticmodel.coef_[0], featurelist))
+coefficients = list(zip(model.coef_, featurelist))
 coefficients.sort()
 for coefficient, word in coefficients:
     print(word + " :  " + str(coefficient))
 
-selfpredictions = logisticmodel.predict(data)
+selfpredictions = model.predict(data)
+transformed = inv_logit(selfpredictions)
 print("Pearson for whole data: ")
-print(pearsonr(accuracies, selfpredictions))
+print(pearsonr(accuracies, transformed))
 
-predictions = np.zeros(len(data))
+folds = list()
+
+predictions = list()
 
 for i in range(0, len(data)):
     trainingset = pd.concat([data[0:i], data[i+1:]])
     trainingacc = accuracies[0:i] + accuracies[i+1:]
     testset = data[i: i + 1]
-    newmodel = LogisticRegression(C = 0.1)
-    newmodel.fit(trainingset, trainingacc)
+    newmodel = LinearRegression()
+    transformedacc = logit(np.array(trainingacc))
+    newmodel.fit(trainingset, transformedacc)
 
     predict = newmodel.predict(testset)
-    predictions[i] = predict[0]
+    test = inv_logit(predict)
+    predictions.append(test[0])
 
 print()
 print('Pearson for test set:' )
 print(pearsonr(predictions, accuracies))
 
+
 # I realize this isn't technically a perfect cross-validation, because the
 # 13 data rows beyond 400 never get tested. But jeez. We're just getting
 # a ballpark estimate here.
 
-def testtwo(aseq, bseq, thresh):
-    bothfail = 0
-    afail = 0
-    bfail = 0
-    c = 0
-    assert len(aseq) == len(bseq)
-    for a,b in zip(aseq, bseq):
-        if a < thresh and b< thresh:
-            c += 1
-            bothfail += 1
-        elif a > thresh and b > thresh:
-            c += 1
-        elif a < thresh and b > thresh:
-            afail += 1
-        elif a > thresh and b < thresh:
-            bfail += 1
-        else:
-            print('whoa')
-            pass
-
-    return c / len(aseq), afail, bfail, bothfail
 
 
 
