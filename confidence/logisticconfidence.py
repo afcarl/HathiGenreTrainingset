@@ -351,10 +351,10 @@ def unpack(predictions, listofmodeledvols):
 
 # Begin main script.
 
-TOL = 0.2
-THRESH = 0.94
+TOL = 0.1
+THRESH = 0.80
 
-genrestocheck = ['dra', 'fic', 'poe']
+genrestocheck = ['fic', 'poe', 'dra']
 
 metadatapath = '/Volumes/TARDIS/work/metadata/MergedMonographs.tsv'
 rows, columns, table = utils.readtsv(metadatapath)
@@ -555,6 +555,8 @@ for genre in genrestocheck:
     genrearray = np.array(genrefeatures[genre])
     genrearray = normalizearray(genrearray)
     gdata = pd.DataFrame(genrearray)
+    numinstances, numfeatures = gdata.shape
+
     gbinary = binarize(genreprecisions[genre], threshold= THRESH)
     genrepredictions[genre] = leave1out(gdata, gbinary, tolparameter = TOL)
     unpackedpredictions[genre] = unpack(genrepredictions[genre], modeledvols[genre])
@@ -598,9 +600,10 @@ def precision(genreTP, genreFP, genreTN, genreFN, predictions, threshold):
     precision = truepos / (truepos + falsepos)
 
     falsenegs = np.sum(genreFN[predictions >= threshold])
-    missednegs = np.sum(genreTP[predictions < threshold])
+    missedpos = np.sum(genreTP[predictions < threshold])
+    missednegs = np.sum(genreFN[predictions < threshold])
 
-    totalfalsenegs = falsenegs + missednegs
+    totalfalsenegs = falsenegs + missedpos + missednegs
 
     # Because the threshold also cuts things off.
 
@@ -608,4 +611,32 @@ def precision(genreTP, genreFP, genreTN, genreFN, predictions, threshold):
 
     return precision, recall
 
+
+#plotresults
+import matplotlib.pyplot as plt
+precisions = list()
+recalls= list()
+for T in range(100):
+    tr = T / 100
+    p, r = precision(fictionTPs, fictionFPs, fictionTNs, fictionFNs, unpackedpredictions['fic'], tr)
+    precisions.append(p)
+    recalls.append(r)
+
+poeprecisions = list()
+poerecalls= list()
+for T in range(100):
+    tr = T / 100
+    p, r = precision(poetryTPs, poetryFPs, poetryTNs, poetryFNs, unpackedpredictions['poe'], tr)
+    poeprecisions.append(p)
+    poerecalls.append(r)
+
+import csv
+
+with open('/Users/tunder/output/confidence80.csv', mode = 'w', encoding='utf-8') as f:
+    writer = csv.writer(f)
+    row = ['ficprecision', 'ficrecall', 'poeprecision', 'poerecall']
+    writer.writerow(row)
+    for idx in range(100):
+        row = [precisions[idx], recalls[idx], poeprecisions[idx], poerecalls[idx]]
+        writer.writerow(row)
 
