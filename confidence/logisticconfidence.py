@@ -249,6 +249,12 @@ class Prediction:
         return matches / self.pagelen, matches, self.pagelen
 
     def matchgenres(self, correctgenres):
+        ''' Calculate true positives, false positives, true negatives, and false
+        negatives for three genres. You're looking at this wordy code and saying
+        "dude, you could have constructed an array," and you are correct. That would
+        have been better in every respect.
+        However, I didn't.
+        '''
         poetryTP = 0
         poetryFP = 0
         poetryTN = 0
@@ -257,6 +263,10 @@ class Prediction:
         fictionFP = 0
         fictionTN = 0
         fictionFN = 0
+        dramaTP = 0
+        dramaTN = 0
+        dramaFP = 0
+        dramaFN = 0
 
         assert len(correctgenres) == len(self.smoothPredictions)
 
@@ -286,7 +296,20 @@ class Prediction:
                 else:
                     fictionTN += 1
 
-        return poetryTP, poetryFP, poetryTN, poetryFN, fictionTP, fictionFP, fictionTN, fictionFN
+            if correctgenres[idx] == 'dra':
+                if genre == 'dra':
+                    dramaTP += 1
+                else:
+                    dramaFN += 1
+
+            if correctgenres[idx] != 'dra':
+                if genre == 'dra':
+                    dramaFP +=1
+                else:
+                    dramaTN +=1
+
+
+        return poetryTP, poetryFP, poetryTN, poetryFN, fictionTP, fictionFP, fictionTN, fictionFN, dramaTP, dramaFP, dramaTN, dramaFN
 
     def matchvector(self, correctgenres):
         assert len(correctgenres) == len(self.smoothPredictions)
@@ -383,6 +406,10 @@ fictionTPs = list()
 fictionFPs = list()
 fictionTNs = list()
 fictionFNs = list()
+dramaTPs = list()
+dramaFPs = list()
+dramaTNs = list()
+dramaFNs = list()
 
 genrefeatures = dict()
 genreprecisions = dict()
@@ -451,7 +478,7 @@ for filename in predicts:
     totalpages.append(total)
     allfeatures.append(predicted.getfeatures())
 
-    poetryTP, poetryFP, poetryTN, poetryFN, fictionTP, fictionFP, fictionTN, fictionFN = predicted.matchgenres(correctgenres)
+    poetryTP, poetryFP, poetryTN, poetryFN, fictionTP, fictionFP, fictionTN, fictionFN, dramaTP, dramaFP, dramaTN, dramaFN = predicted.matchgenres(correctgenres)
 
     poetryTPs.append(poetryTP)
     poetryFPs.append(poetryFP)
@@ -462,6 +489,11 @@ for filename in predicts:
     fictionFPs.append(fictionFP)
     fictionTNs.append(fictionTN)
     fictionFNs.append(fictionFN)
+
+    dramaTPs.append(dramaTP)
+    dramaFPs.append(dramaFP)
+    dramaTNs.append(dramaTN)
+    dramaFNs.append(dramaFN)
 
     for genre in genrestocheck:
         precision = predicted.genreaccuracy(genre, correctgenres)
@@ -502,9 +534,10 @@ fictionFPs = np.array(fictionFPs)
 fictionTNs = np.array(fictionTNs)
 fictionFNs = np.array(fictionFNs)
 
-# We also need to unpack the versions of these arrays that are keyed to the special models
-# created for poetry and fiction volumes. (We need different versions because these models
-# will have a different length, since they only contain files)
+dramaTPs = np.array(dramaTPs)
+dramaFPs = np.array(dramaFPs)
+dramaTNs = np.array(dramaTNs)
+dramaFNs = np.array(dramaFNs)
 
 # Now let's normalize features by centering on mean and scaling
 # by standard deviation
@@ -630,13 +663,21 @@ for T in range(100):
     poeprecisions.append(p)
     poerecalls.append(r)
 
+draprecisions = list()
+drarecalls = list()
+for T in range(100):
+    tr = T / 100
+    p, r = precision(dramaTPs, dramaFPs, dramaTNs, dramaFNs, unpackedpredictions['dra'], tr)
+    draprecisions.append(p)
+    drarecalls.append(r)
+
 import csv
 
 with open('/Users/tunder/output/confidence80.csv', mode = 'w', encoding='utf-8') as f:
     writer = csv.writer(f)
-    row = ['ficprecision', 'ficrecall', 'poeprecision', 'poerecall']
+    row = ['ficprecision', 'ficrecall', 'poeprecision', 'poerecall', 'draprecision', 'drarecall']
     writer.writerow(row)
     for idx in range(100):
-        row = [precisions[idx], recalls[idx], poeprecisions[idx], poerecalls[idx]]
+        row = [precisions[idx], recalls[idx], poeprecisions[idx], poerecalls[idx], draprecisions[idx], drarecalls[idx]]
         writer.writerow(row)
 
