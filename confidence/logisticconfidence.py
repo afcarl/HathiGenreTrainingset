@@ -12,6 +12,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn import cross_validation
 from scipy.stats.stats import pearsonr
 
+import pickle, csv
+
 genretranslations = {'subsc' : 'front', 'argum': 'non', 'pref': 'non', 'aut': 'bio', 'bio': 'bio', 'toc': 'front', 'title': 'front', 'bookp': 'front', 'bibli': 'ads', 'gloss': 'back', 'epi': 'fic', 'errat': 'non', 'notes': 'non', 'ora': 'non', 'let': 'bio', 'trv': 'non', 'lyr': 'poe', 'nar': 'poe', 'vdr': 'dra', 'pdr': 'dra', 'clo': 'dra', 'impri': 'front', 'libra': 'back', 'index': 'back'}
 
 def sequence_to_counts(genresequence):
@@ -68,6 +70,26 @@ def normalizearray(featurearray):
         featurearray[ : , featureidx] = (thiscolumn - thismean) / thisstdev
 
     return featurearray
+
+def normalizeandexport(featurearray):
+    '''Normalizes an array by centering on means and
+    scaling by standard deviations. Also returns the
+    means and standard deviations for features, so that
+    they can be pickled.
+    '''
+
+    numinstances, numfeatures = featurearray.shape
+    means = list()
+    stdevs = list()
+    for featureidx in range(numfeatures):
+        thiscolumn = featurearray[ : , featureidx]
+        thismean = np.mean(thiscolumn)
+        means.append(thismean)
+        thisstdev = np.std(thiscolumn)
+        stdevs.append(thisstdev)
+        featurearray[ : , featureidx] = (thiscolumn - thismean) / thisstdev
+
+    return featurearray, means, stdevs
 
 def binarize(accuracies, threshold=0.95):
     binarized = list()
@@ -542,7 +564,7 @@ dramaFNs = np.array(dramaFNs)
 # Now let's normalize features by centering on mean and scaling
 # by standard deviation
 
-featurearray = normalizearray(featurearray)
+featurearray, means, stdevs = normalizeandexport(featurearray)
 
 data = pd.DataFrame(featurearray)
 
@@ -564,6 +586,18 @@ selfpredictions = logisticmodel.predict_proba(data)[ : , 1]
 print("Pearson for whole data: ")
 print(pearsonr(accuracies, selfpredictions))
 
+# Now we export that model.
+
+exportfolder = '/Users/tunder/output/confidencemodels/'
+modelfile = exportfolder + "overallmodel.p"
+
+wholemodel = dict()
+wholemodel['model'] = logisticmodel
+wholemodel['means'] = means
+wholemodel['stdevs'] = stdevs
+with open(modelfile, mode = 'wb') as f:
+    pickle.dump(wholemodel, f)
+
 predictions = np.zeros(len(data))
 
 for i in range(0, len(data)):
@@ -583,6 +617,9 @@ print(pearsonr(predictions, accuracies))
 genrepredictions = dict()
 unpackedpredictions = dict()
 
+# Now we produce predictions for each genre using a leave-one-out method. Otherwise we wouldn't
+# know that the modeling strategy we're using was in reality reliable beyond this test set.
+
 for genre in genrestocheck:
     print(genre)
     genrearray = np.array(genrefeatures[genre])
@@ -593,6 +630,35 @@ for genre in genrestocheck:
     gbinary = binarize(genreprecisions[genre], threshold= THRESH)
     genrepredictions[genre] = leave1out(gdata, gbinary, tolparameter = TOL)
     unpackedpredictions[genre] = unpack(genrepredictions[genre], modeledvols[genre])
+
+# However, we also want to produce models that can be exported. This we don't have to do using a
+# leave-one-out method.
+
+for genre in genrestocheck:
+    print(genre + " exporting model. ")
+    genrearray = np.array(genrefeatures[genre])
+    genrearray, means, stdevs = normalizeandexport(genrearray)
+    gdata = pd.DataFrame(genrearray)
+    gbinary = binarize(genreprecisions[genre], threshold= THRESH)
+    genremodel = LogisticRegression(C = TOL)
+    genremodel.fit(gdata, gbinary)
+    predict = genremodel.predict(gdata)
+    correlation = pearsonr(predict, gbinary)
+    print("Pearson correlation of auto-prediction: " + str(correlation))
+    # Don't really use that to assess accuracy of the model, because not
+    # crossvalidated. Just using it to check that the code works.
+    modelfile = exportfolder + genre + 'model.p'
+
+    # The whole model is the model itself, plus the means and standard deviations
+    # that were used to normalize the feature array.
+
+    wholemodel = dict()
+    wholemodel['model'] = genremodel
+    wholemodel['means'] = means
+    wholemodel['stdevs'] = stdevs
+
+    with open(modelfile, mode = 'wb') as f:
+        pickle.dump(wholemodel, f)
 
 def testtwo(aseq, bseq, thresh):
     bothfail = 0
@@ -670,8 +736,6 @@ for T in range(100):
     p, r = precision(dramaTPs, dramaFPs, dramaTNs, dramaFNs, unpackedpredictions['dra'], tr)
     draprecisions.append(p)
     drarecalls.append(r)
-
-import csv
 
 with open('/Users/tunder/output/confidence80.csv', mode = 'w', encoding='utf-8') as f:
     writer = csv.writer(f)
