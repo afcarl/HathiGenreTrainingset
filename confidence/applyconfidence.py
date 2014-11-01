@@ -87,14 +87,14 @@ def normalizeformodel(featurearray, modeldict):
     scaling by standard deviations associated with the given model.
     '''
 
-    numinstances, numfeatures = featurearray.shape
+    numfeatures = len(featurearray)
     means = modeldict['means']
     stdevs = modeldict['stdevs']
     for featureidx in range(numfeatures):
-        thiscolumn = featurearray[ : , featureidx]
+        thiscolumn = featurearray[featureidx]
         thismean = means[featureidx]
         thisstdev = stdevs[featureidx]
-        featurearray[ : , featureidx] = (thiscolumn - thismean) / thisstdev
+        featurearray[featureidx] = (thiscolumn - thismean) / thisstdev
 
     return featurearray
 
@@ -295,16 +295,16 @@ class Prediction:
 
             genrelist.append(genre.lower())
 
-        metadata['genre_tags'] = ", ".join(genrelist)
-        return metadata
+        metadict['genre_tags'] = ", ".join(genrelist)
+        return metadict
 
 
 # Begin main script.
 
 args = sys.argv
 
-sourcedirlist = args[0]
-modeldir = args[1]
+sourcedirlist = args[1]
+modeldir = args[2]
 
 genrestocheck = ['fic', 'poe', 'dra']
 genrepath = dict()
@@ -353,21 +353,22 @@ with open(calipath, encoding = 'utf-8') as f:
             calibration[genre]['precision'].append(row[idx * 2])
             calibration[genre]['recall'].append(row[(idx * 2) + 1])
 
-outputdir = args[2]
+outputdir = args[3]
 
 TOL = 0.1
 THRESH = 0.80
 
-metadatapath = '/projects/ichass/usesofscale/hathimeta/MergedMonographs.tsv'
+#metadatapath = '/projects/ichass/usesofscale/hathimeta/MergedMonographs.tsv'
+metadatapath = '/Volumes/TARDIS/work/metadata/MergedMonographs.tsv'
 rows, columns, table = utils.readtsv(metadatapath)
 
-for sourcedir in sourcedirlist:
-    predicts = os.listdir(predictsource)
+for sourcedir in [sourcedirlist]:
+    predicts = os.listdir(sourcedir)
     predicts = [x for x in predicts if not x.startswith('.')]
 
     for filename in predicts:
         cleanid = utils.pairtreelabel(filename.replace('.predict', ''))
-        filepath = os.path.join(predictsource, filename)
+        filepath = os.path.join(sourcedir, filename)
 
         try:
             predicted = Prediction(filepath)
@@ -385,7 +386,7 @@ for sourcedir in sourcedirlist:
         featurearray = normalizeformodel(np.array(overallfeatures), overallmodel)
         featureframe = pd.DataFrame(featurearray)
         thismodel = overallmodel['model']
-        overall95proba = thismodel.predict_proba(testset)[0][1]
+        overall95proba = thismodel.predict_proba(featureframe.T)[0][1]
 
         genreprobs = dict()
 
@@ -394,7 +395,7 @@ for sourcedir in sourcedirlist:
             featurearray = normalizeformodel(np.array(features), genremodel[genre])
             featureframe = pd.DataFrame(featurearray)
             thismodel = genremodel[genre]['model']
-            genreprobs[genre] = thismodel.predict_proba(testset)[0][1]
+            genreprobs[genre] = thismodel.predict_proba(featureframe.T)[0][1]
 
         jsontemplate = dict()
 
