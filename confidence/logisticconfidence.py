@@ -270,6 +270,24 @@ class Prediction:
 
         return matches / self.pagelen, matches, self.pagelen
 
+    def matchpages(self, correctgenres, wordcounts):
+        assert len(correctgenres) == len(self.smoothPredictions)
+        assert len(correctgenres) == len(wordcounts)
+        totalwords = sum(wordcounts)
+
+        matches = 0
+        for idx, genre in enumerate(self.smoothPredictions):
+            thiscount = wordcounts[idx]
+
+            if correctgenres[idx] == genre:
+                matches += thiscount
+            elif correctgenres[idx] == 'bio' and genre == 'non':
+                matches += thiscount
+            elif correctgenres[idx] == 'non' and genre == 'bio':
+                matches += thiscount
+
+        return matches / totalwords, matches, totalwords
+
     def matchgenres(self, correctgenres):
         ''' Calculate true positives, false positives, true negatives, and false
         negatives for three genres. You're looking at this wordy code and saying
@@ -329,6 +347,74 @@ class Prediction:
                     dramaFP +=1
                 else:
                     dramaTN +=1
+
+
+        return poetryTP, poetryFP, poetryTN, poetryFN, fictionTP, fictionFP, fictionTN, fictionFN, dramaTP, dramaFP, dramaTN, dramaFN
+
+    def matchgenrepages(self, correctgenres, wordcounts):
+        ''' Calculate true positives, false positives, true negatives, and false
+        negatives for three genres. You're looking at this wordy code and saying
+        "dude, you could have constructed an array," and you are correct. That would
+        have been better in every respect.
+        However, I didn't.
+
+        This version of the wordy function counts words instead of pages.
+        '''
+        poetryTP = 0
+        poetryFP = 0
+        poetryTN = 0
+        poetryFN = 0
+        fictionTP = 0
+        fictionFP = 0
+        fictionTN = 0
+        fictionFN = 0
+        dramaTP = 0
+        dramaTN = 0
+        dramaFP = 0
+        dramaFN = 0
+
+        assert len(correctgenres) == len(self.smoothPredictions)
+        assert len(correctgenres) == len(wordcounts)
+
+        for idx, genre in enumerate(self.smoothPredictions):
+
+            thiscount = wordcounts[idx]
+
+            if correctgenres[idx] == 'poe':
+                if genre == 'poe':
+                    poetryTP += thiscount
+                else:
+                    poetryFN += thiscount
+
+            if correctgenres[idx] != 'poe':
+                if genre == 'poe':
+                    poetryFP += thiscount
+                else:
+                    poetryTN += thiscount
+
+            if correctgenres[idx] == 'fic':
+                if genre == 'fic':
+                    fictionTP += thiscount
+                else:
+                    fictionFN += thiscount
+
+            if correctgenres[idx] != 'fic':
+                if genre == 'fic':
+                    fictionFP += thiscount
+                else:
+                    fictionTN += thiscount
+
+            if correctgenres[idx] == 'dra':
+                if genre == 'dra':
+                    dramaTP += thiscount
+                else:
+                    dramaFN += thiscount
+
+            if correctgenres[idx] != 'dra':
+                if genre == 'dra':
+                    dramaFP += thiscount
+                else:
+                    dramaTN += thiscount
 
 
         return poetryTP, poetryFP, poetryTN, poetryFN, fictionTP, fictionFP, fictionTN, fictionFN, dramaTP, dramaFP, dramaTN, dramaFN
@@ -394,6 +480,26 @@ def unpack(predictions, listofmodeledvols):
 
     return unpacked
 
+def loadwordcounts(directory):
+    path = directory.replace('genremaps/', '') + 'pagelevelwordcounts.tsv'
+    with open(path, encoding = 'utf-8') as f:
+        filelines = f.readlines()
+
+    wordcountsbyfile = dict()
+    for line in filelines[1:]:
+        line = line.rstrip()
+        fields = line.split('\t')
+        htid = fields[0]
+        page = int(fields[1])
+        count = int(fields[2])
+
+        if htid in wordcountsbyfile:
+            wordcountsbyfile[htid].append(count)
+        else:
+            wordcountsbyfile[htid] = [count]
+
+    return wordcountsbyfile
+
 # Begin main script.
 
 TOL = 0.1
@@ -409,6 +515,9 @@ secondsource = "/Users/tunder/Dropbox/pagedata/seventhfeatures/genremaps/"
 
 firstmaps = os.listdir(firstsource)
 secondmaps = os.listdir(secondsource)
+
+firstwordcounts = loadwordcounts(firstsource)
+secondwordcounts = loadwordcounts(secondsource)
 
 predictsource = '/Users/tunder/Dropbox/pagedata/production/crosspredicts/'
 
@@ -440,7 +549,8 @@ modeledvols = dict()
 
 for filename in predicts:
     mapname = filename.replace('.predict', '.map')
-    cleanid = utils.pairtreelabel(filename.replace('.predict', ''))
+    labelid = utils.pairtreelabel(filename.replace('.predict', ''))
+    fileid = filename.replace('.predict', '')
 
     if mapname in firstmaps:
         firstpath = os.path.join(firstsource, mapname)
@@ -448,6 +558,7 @@ for filename in predicts:
             with open(firstpath, encoding = 'utf-8') as f:
                 filelines = f.readlines()
                 success = True
+            wordcounts = firstwordcounts[fileid]
         else:
             success = False
     elif mapname in secondmaps:
@@ -456,6 +567,7 @@ for filename in predicts:
             with open(secondpath, encoding = 'utf-8') as f:
                 filelines = f.readlines()
                 success = True
+            wordcounts = secondwordcounts[fileid]
         else:
             success = False
     else:
@@ -483,10 +595,10 @@ for filename in predicts:
     filepath = os.path.join(predictsource, filename)
     predicted = Prediction(filepath)
 
-    if cleanid in rows:
-        predicted.addmetadata(cleanid, table)
+    if labelid in rows:
+        predicted.addmetadata(labelid, table)
     else:
-        print('Missing metadata for ' + cleanid)
+        print('Missing metadata for ' + labelid)
         predicted.missingmetadata()
 
     # matchpercent = predicted.match(correctgenres)
@@ -494,13 +606,13 @@ for filename in predicts:
     # accuracies.append(matchpercent)
 
 
-    proportion, correct, total = predicted.match(correctgenres)
+    proportion, correct, total = predicted.matchpages(correctgenres, wordcounts)
     accuracies.append(proportion)
     correctpages.append(correct)
     totalpages.append(total)
     allfeatures.append(predicted.getfeatures())
 
-    poetryTP, poetryFP, poetryTN, poetryFN, fictionTP, fictionFP, fictionTN, fictionFN, dramaTP, dramaFP, dramaTN, dramaFN = predicted.matchgenres(correctgenres)
+    poetryTP, poetryFP, poetryTN, poetryFN, fictionTP, fictionFP, fictionTN, fictionFN, dramaTP, dramaFP, dramaTN, dramaFN = predicted.matchgenrepages(correctgenres, wordcounts)
 
     poetryTPs.append(poetryTP)
     poetryFPs.append(poetryFP)
@@ -568,7 +680,8 @@ featurearray, means, stdevs = normalizeandexport(featurearray)
 
 data = pd.DataFrame(featurearray)
 
-binarized = binarize(accuracies, threshold = THRESH)
+binarized = binarize(accuracies, threshold = 0.95)
+# We use a 95% threshold here even when the genres are set to 80%
 
 logisticmodel = LogisticRegression(C = TOL)
 logisticmodel.fit(data, binarized)
@@ -688,9 +801,12 @@ def corpusaccuracy(predictions, correctpages, totalpages, threshold):
     return allcorrect / alltotal
 
 def corpusrecall(predictions, correctpages, totalpages, threshold):
-    missedcorrect = np.sum(correctpages[predictions < threshold])
-    correcttotal = np.sum(correctpages)
-    return missedcorrect / correcttotal
+    # missedcorrect = np.sum(correctpages[predictions < threshold])
+    # correcttotal = np.sum(correctpages)
+    gotcorrect = np.sum(correctpages[predictions > threshold])
+    totalpages = np.sum(totalpages)
+
+    return (gotcorrect / totalpages)
 
 def precision(genreTP, genreFP, genreTN, genreFN, predictions, threshold):
     truepos = np.sum(genreTP[predictions>threshold])
@@ -713,13 +829,13 @@ def precision(genreTP, genreFP, genreTN, genreFN, predictions, threshold):
 
 #plotresults
 import matplotlib.pyplot as plt
-precisions = list()
-recalls= list()
+ficprecisions = list()
+ficrecalls= list()
 for T in range(100):
     tr = T / 100
     p, r = precision(fictionTPs, fictionFPs, fictionTNs, fictionFNs, unpackedpredictions['fic'], tr)
-    precisions.append(p)
-    recalls.append(r)
+    ficprecisions.append(p)
+    ficrecalls.append(r)
 
 poeprecisions = list()
 poerecalls= list()
@@ -737,11 +853,20 @@ for T in range(100):
     draprecisions.append(p)
     drarecalls.append(r)
 
+overallprecisions = list()
+overallrecalls = list()
+for T in range(100):
+    tr = T / 100
+    p = corpusaccuracy(predictions, correctpages, totalpages, tr)
+    r = corpusrecall(predictions, correctpages, totalpages, tr)
+    overallprecisions.append(p)
+    overallrecalls.append(r)
+
 with open('/Users/tunder/output/confidence80.csv', mode = 'w', encoding='utf-8') as f:
     writer = csv.writer(f)
-    row = ['ficprecision', 'ficrecall', 'poeprecision', 'poerecall', 'draprecision', 'drarecall']
+    row = ['overallaccuracy', 'overallrec', 'ficprecision', 'ficrecall', 'poeprecision', 'poerecall', 'draprecision', 'drarecall']
     writer.writerow(row)
     for idx in range(100):
-        row = [precisions[idx], recalls[idx], poeprecisions[idx], poerecalls[idx], draprecisions[idx], drarecalls[idx]]
+        row = [overallprecisions[idx], overallrecalls[idx], ficprecisions[idx], ficrecalls[idx], poeprecisions[idx], poerecalls[idx], draprecisions[idx], drarecalls[idx]]
         writer.writerow(row)
 

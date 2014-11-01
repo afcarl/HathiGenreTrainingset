@@ -13,6 +13,20 @@ from sklearn import cross_validation
 from scipy.stats.stats import pearsonr
 import pickle, csv
 
+def intpart(afloat):
+    idx = (int(afloat*100))
+    if idx < 0:
+        idx = 0
+    if idx > 99:
+        idx = 99
+    return idx
+
+def calibrate(probability, curveset):
+    idx = intpart(probability)
+    precision = curveset['precision'][idx]
+    recall = curveset['recall'][idx]
+    return str(idx/100), precision, recall
+
 def sequence_to_counts(genresequence):
     '''Converts a sequence of page-level predictions to
     a dictionary of counts reflecting the number of pages
@@ -241,82 +255,6 @@ class Prediction:
 
         return precision
 
-    def match(self, correctgenres):
-        assert len(correctgenres) == len(self.smoothPredictions)
-        matches = 0
-        for idx, genre in enumerate(self.smoothPredictions):
-            if correctgenres[idx] == genre:
-                matches += 1
-            elif correctgenres[idx] == 'bio' and genre == 'non':
-                matches += 1
-            elif correctgenres[idx] == 'non' and genre == 'bio':
-                matches += 1
-
-        return matches / self.pagelen, matches, self.pagelen
-
-    def matchgenres(self, correctgenres):
-        ''' Calculate true positives, false positives, true negatives, and false
-        negatives for three genres. You're looking at this wordy code and saying
-        "dude, you could have constructed an array," and you are correct. That would
-        have been better in every respect.
-        However, I didn't.
-        '''
-        poetryTP = 0
-        poetryFP = 0
-        poetryTN = 0
-        poetryFN = 0
-        fictionTP = 0
-        fictionFP = 0
-        fictionTN = 0
-        fictionFN = 0
-        dramaTP = 0
-        dramaTN = 0
-        dramaFP = 0
-        dramaFN = 0
-
-        assert len(correctgenres) == len(self.smoothPredictions)
-
-        for idx, genre in enumerate(self.smoothPredictions):
-
-            if correctgenres[idx] == 'poe':
-                if genre == 'poe':
-                    poetryTP += 1
-                else:
-                    poetryFN += 1
-
-            if correctgenres[idx] != 'poe':
-                if genre == 'poe':
-                    poetryFP += 1
-                else:
-                    poetryTN += 1
-
-            if correctgenres[idx] == 'fic':
-                if genre == 'fic':
-                    fictionTP += 1
-                else:
-                    fictionFN += 1
-
-            if correctgenres[idx] != 'fic':
-                if genre == 'fic':
-                    fictionFP += 1
-                else:
-                    fictionTN += 1
-
-            if correctgenres[idx] == 'dra':
-                if genre == 'dra':
-                    dramaTP += 1
-                else:
-                    dramaFN += 1
-
-            if correctgenres[idx] != 'dra':
-                if genre == 'dra':
-                    dramaFP +=1
-                else:
-                    dramaTN +=1
-
-
-        return poetryTP, poetryFP, poetryTN, poetryFN, fictionTP, fictionFP, fictionTN, fictionFN, dramaTP, dramaFP, dramaTN, dramaFN
-
     def matchvector(self, correctgenres):
         assert len(correctgenres) == len(self.smoothPredictions)
         matches = list()
@@ -331,6 +269,35 @@ class Prediction:
                 matches.append(0)
 
         return matches
+
+    def getpredictions(self):
+        pagedict = dict()
+        for idx, genre in enumerate(self.smoothPredictions):
+            pagedict[idx] = genre
+        return pagedict
+
+    def getmetadata(self):
+        metadict = dict()
+        metadict['htid'] = self.dirtyid
+        metadict['author'] = self.author
+        metadict['title'] = self.title
+        metadict['inferred_date'] = self.date
+        genrelist = []
+        for genre in self.genres:
+            if genre == "NotFiction":
+                continue
+            if genre == "UnknownGenre":
+                continue
+            if genre == "ContainsBiogMaterial":
+                continue
+
+            # In my experience, none of those tags are reliable in my Hathi dataset.
+
+            genrelist.append(genre.lower())
+
+        metadata['genre_tags'] = ", ".join(genrelist)
+        return metadata
+
 
 # Begin main script.
 
@@ -355,6 +322,38 @@ for genre in genrestocheck:
     with open(genrepath[genre], mode='rb') as f:
         genremodel[genre] = pickle.load(f)
 
+fullnames = {'fic': 'fiction', 'poe': 'poetry', 'dra': 'drama'}
+
+# The logistic models we train on volumes are technically
+# predicting the probability that an individual volume will
+# cross a particular accuracy threshold. For the overall model
+# it's .95, for the genres it's .8.
+
+# This doesn't tell us what we really want to know, which is,
+# if we construct a corpus of volumes like this, what will our
+# precision and recall be? To infer that, we calculate precision
+# and recall in the test set using different probability-thresholds,
+# smooth the curve, and then use it empiricially to map a
+# threshold-probability to a corpus level prediction for precision and recall.
+
+genrestocalibrate = ['overall', 'fic', 'poe', 'dra']
+
+calibration = dict()
+for genre in genrestocalibrate:
+    calibration[genre] = dict()
+    calibration[genre]['precision'] = list()
+    calibration[genre]['recall'] = list()
+
+calipath = os.path.join(modeldir, 'calibration.csv')
+with open(calipath, encoding = 'utf-8') as f:
+    reader = csv.reader(f)
+    next(reader, None)
+    for row in reader:
+        for idx, genre in enumerate(genrestocalibrate):
+            calibration[genre]['precision'].append(row[idx * 2])
+            calibration[genre]['recall'].append(row[(idx * 2) + 1])
+
+outputdir = args[2]
 
 TOL = 0.1
 THRESH = 0.80
@@ -397,203 +396,45 @@ for sourcedir in sourcedirlist:
             thismodel = genremodel[genre]['model']
             genreprobs[genre] = thismodel.predict_proba(testset)[0][1]
 
+        jsontemplate = dict()
 
-poetryTPs = np.array(poetryTPs)
-poetryFPs = np.array(poetryFPs)
-poetryTNs = np.array(poetryTNs)
-poetryFNs = np.array(poetryFNs)
+        jsontemplate['page_genres'] = predicted.getpredictions()
+        jsontemplate['hathi_metadata'] = predicted.getmetadata()
+        jsontemplate['added_metadata'] = dict()
+        jsontemplate['added_metadata']['totalpages'] = str(predicted.pagelen)
+        jsontemplate['added_metadata']['maxgenre'] = str(predicted.maxgenre)
+        jsontemplate['added_metadata']['genre_counts'] = str(predicted.genrecounts)
 
-fictionTPs = np.array(fictionTPs)
-fictionFPs = np.array(fictionFPs)
-fictionTNs = np.array(fictionTNs)
-fictionFNs = np.array(fictionFNs)
+        overallprob, overallprecision, overallrecall = calibrate(overall95proba, calibration['overall'])
 
-dramaTPs = np.array(dramaTPs)
-dramaFPs = np.array(dramaFPs)
-dramaTNs = np.array(dramaTNs)
-dramaFNs = np.array(dramaFNs)
+        overallaccuracy = dict()
+        overallaccuracy['prob_95acc'] = overallprob
+        overallaccuracy['cut_here_precision'] = overallprecision
+        overallaccuracy['cut_here_recall'] = overallrecall
 
-# Now let's normalize features by centering on mean and scaling
-# by standard deviation
+        jsontemplate['volume_accuracy'] = overallaccuracy
 
-featurearray, means, stdevs = normalizeandexport(featurearray)
+        for genre in genrestocheck:
+            if genre in predicted.genrecounts:
+                gpages = predicted.genrecounts[genre]
+                gpercent = round((gpages / predicted.pagelen) * 100) / 100
+                gprob, gprecision, grecall = calibrate(genreprobs[genre], calibration[genre])
+                name = fullnames[genre]
+                newdict = dict()
+                newdict['prob_80acc'] = gprob
+                newdict['pages_' + name] = gpages
+                newdict['pct_' + name] = gpercent
+                newdict['cut_here_precision'] = gprecision
+                newdict['cut_here_recall'] = grecall
+                jsontemplate[name] = newdict
 
-data = pd.DataFrame(featurearray)
+        prefix = filename.split('.')[0]
 
-binarized = binarize(accuracies, threshold = THRESH)
+        subdirectory = os.path.join(outputdir, prefix)
+        if not os.path.isdir(subdirectory):
+            os.mkdir(subdirectory)
 
-logisticmodel = LogisticRegression(C = TOL)
-logisticmodel.fit(data, binarized)
-
-featurelist = ['confirmfic', 'denyfic', 'confirmpoe', 'denypoe', 'confirmdra', 'denydra', 'confirmnon', 'denynon', 'maxratio', 'rawflipratio', 'smoothflips', 'avggap', 'maxprob']
-
-# featurelist = ['maxratio', 'rawflipratio', 'smoothflips', 'avggap', 'maxprob']
-
-coefficients = list(zip(logisticmodel.coef_[0], featurelist))
-coefficients.sort()
-for coefficient, word in coefficients:
-    print(word + " :  " + str(coefficient))
-
-selfpredictions = logisticmodel.predict_proba(data)[ : , 1]
-print("Pearson for whole data: ")
-print(pearsonr(accuracies, selfpredictions))
-
-# Now we export that model.
-
-exportfolder = '/Users/tunder/output/confidencemodels/'
-modelfile = exportfolder + "overallmodel.p"
-
-wholemodel = dict()
-wholemodel['model'] = logisticmodel
-wholemodel['means'] = means
-wholemodel['stdevs'] = stdevs
-with open(modelfile, mode = 'wb') as f:
-    pickle.dump(wholemodel, f)
-
-predictions = np.zeros(len(data))
-
-for i in range(0, len(data)):
-    trainingset = pd.concat([data[0:i], data[i+1:]])
-    trainingacc = binarized[0:i] + binarized[i+1:]
-    testset = data[i: i + 1]
-    newmodel = LogisticRegression(C = TOL)
-    newmodel.fit(trainingset, trainingacc)
-
-    predict = newmodel.predict_proba(testset)[0][1]
-    predictions[i] = predict
-
-print()
-print('Pearson for test set:' )
-print(pearsonr(predictions, accuracies))
-
-genrepredictions = dict()
-unpackedpredictions = dict()
-
-# Now we produce predictions for each genre using a leave-one-out method. Otherwise we wouldn't
-# know that the modeling strategy we're using was in reality reliable beyond this test set.
-
-for genre in genrestocheck:
-    print(genre)
-    genrearray = np.array(genrefeatures[genre])
-    genrearray = normalizearray(genrearray)
-    gdata = pd.DataFrame(genrearray)
-    numinstances, numfeatures = gdata.shape
-
-    gbinary = binarize(genreprecisions[genre], threshold= THRESH)
-    genrepredictions[genre] = leave1out(gdata, gbinary, tolparameter = TOL)
-    unpackedpredictions[genre] = unpack(genrepredictions[genre], modeledvols[genre])
-
-# However, we also want to produce models that can be exported. This we don't have to do using a
-# leave-one-out method.
-
-for genre in genrestocheck:
-    print(genre + " exporting model. ")
-    genrearray = np.array(genrefeatures[genre])
-    genrearray, means, stdevs = normalizeandexport(genrearray)
-    gdata = pd.DataFrame(genrearray)
-    gbinary = binarize(genreprecisions[genre], threshold= THRESH)
-    genremodel = LogisticRegression(C = TOL)
-    genremodel.fit(gdata, gbinary)
-    predict = genremodel.predict(gdata)
-    correlation = pearsonr(predict, gbinary)
-    print("Pearson correlation of auto-prediction: " + str(correlation))
-    # Don't really use that to assess accuracy of the model, because not
-    # crossvalidated. Just using it to check that the code works.
-    modelfile = exportfolder + genre + 'model.p'
-
-    # The whole model is the model itself, plus the means and standard deviations
-    # that were used to normalize the feature array.
-
-    wholemodel = dict()
-    wholemodel['model'] = genremodel
-    wholemodel['means'] = means
-    wholemodel['stdevs'] = stdevs
-
-    with open(modelfile, mode = 'wb') as f:
-        pickle.dump(wholemodel, f)
-
-def testtwo(aseq, bseq, thresh):
-    bothfail = 0
-    afail = 0
-    bfail = 0
-    c = 0
-    assert len(aseq) == len(bseq)
-    for a,b in zip(aseq, bseq):
-        if a < thresh and b< thresh:
-            c += 1
-            bothfail += 1
-        elif a > thresh and b > thresh:
-            c += 1
-        elif a < thresh and b > thresh:
-            afail += 1
-        elif a > thresh and b < thresh:
-            bfail += 1
-        else:
-            print('whoa')
-            pass
-
-    return c / len(aseq), afail, bfail, bothfail
-
-def corpusaccuracy(predictions, correctpages, totalpages, threshold):
-    allcorrect = np.sum(correctpages[predictions > threshold])
-    alltotal = np.sum(totalpages[predictions > threshold])
-    return allcorrect / alltotal
-
-def corpusrecall(predictions, correctpages, totalpages, threshold):
-    missedcorrect = np.sum(correctpages[predictions < threshold])
-    correcttotal = np.sum(correctpages)
-    return missedcorrect / correcttotal
-
-def precision(genreTP, genreFP, genreTN, genreFN, predictions, threshold):
-    truepos = np.sum(genreTP[predictions>threshold])
-    falsepos = np.sum(genreFP[predictions>threshold])
-
-    precision = truepos / (truepos + falsepos)
-
-    falsenegs = np.sum(genreFN[predictions >= threshold])
-    missedpos = np.sum(genreTP[predictions < threshold])
-    missednegs = np.sum(genreFN[predictions < threshold])
-
-    totalfalsenegs = falsenegs + missedpos + missednegs
-
-    # Because the threshold also cuts things off.
-
-    recall = truepos / (truepos + totalfalsenegs)
-
-    return precision, recall
-
-
-#plotresults
-import matplotlib.pyplot as plt
-precisions = list()
-recalls= list()
-for T in range(100):
-    tr = T / 100
-    p, r = precision(fictionTPs, fictionFPs, fictionTNs, fictionFNs, unpackedpredictions['fic'], tr)
-    precisions.append(p)
-    recalls.append(r)
-
-poeprecisions = list()
-poerecalls= list()
-for T in range(100):
-    tr = T / 100
-    p, r = precision(poetryTPs, poetryFPs, poetryTNs, poetryFNs, unpackedpredictions['poe'], tr)
-    poeprecisions.append(p)
-    poerecalls.append(r)
-
-draprecisions = list()
-drarecalls = list()
-for T in range(100):
-    tr = T / 100
-    p, r = precision(dramaTPs, dramaFPs, dramaTNs, dramaFNs, unpackedpredictions['dra'], tr)
-    draprecisions.append(p)
-    drarecalls.append(r)
-
-with open('/Users/tunder/output/confidence80.csv', mode = 'w', encoding='utf-8') as f:
-    writer = csv.writer(f)
-    row = ['ficprecision', 'ficrecall', 'poeprecision', 'poerecall', 'draprecision', 'drarecall']
-    writer.writerow(row)
-    for idx in range(100):
-        row = [precisions[idx], recalls[idx], poeprecisions[idx], poerecalls[idx], draprecisions[idx], drarecalls[idx]]
-        writer.writerow(row)
+        outpath = os.path.join(subdirectory, filename + ".json")
+        with open(outpath, mode = 'w', encoding = 'utf-8') as f:
+            f.write(json.dumps(jsontemplate, sort_keys = True))
 
