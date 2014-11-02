@@ -3,7 +3,7 @@ confidence
 
 Scripts that we used to predict levels of confidence for individual volumes, and more importantly, for corpora.
 
-The Java workflow under /pages makes page-level genre predictions. It smooths those predictions using a hidden Markov model that understands context, but doesn't otherwise attempt to make judgments about the *volumes* themselves.
+The Java workflow under [/pages](https://github.com/tedunderwood/pages) makes page-level genre predictions. It smooths those predictions using a hidden Markov model that understands context, but doesn't otherwise attempt to make judgments about the *volumes* themselves.
 
 However, we do have a lot of useful volume-level information that we could use to assess the reliability of predictions within a given volume. We know how confident, overall, our page-level classifiers were. We have previous metadata about the volume (e.g., does the MARC record say it's a biography?) We can also draw some inferences from the pattern of page labels. Volumes that are evenly divided between different genres -- especially genres that flip back and forth every few pages -- tend to be unreliable.
 
