@@ -22,10 +22,7 @@ predicts accuracy, we train logistic models that estimate the probability
 of a binary threshold -- i.e., what's the *probability* that the pages in this volume are
 more than 95% correctly identified by genre?
 
-For reasons that I do not pretend to fully understand, this turned out more accurate than a lot of
-other possible modeling strategies. (I think the basic reason is that the function we're
-dealing with here is nonlinear.) Anyway, this approach worked well, even when cross-validated,
-and some others didn't.
+For reasons that I do not pretend to fully understand, this turned out more accurate than a lot of other possible modeling strategies. (I think the basic reason is that the function we're dealing with here is nonlinear.) Anyway, this approach worked well, even when cross-validated, and some others didn't.
 
 Of course, what users really want to know is, what threshold should I set if I want to
 ensure that the corpus I'm getting has a certain level of precision? I've calculated
@@ -33,10 +30,8 @@ that in an imperfect, ad-hoc way, by measuring the recall and precision stats fo
 created by thresholding my training corpus at different probability levels. This gives me
 predicted precision and recall curves, which I also smoothed with lowess regression to
 minimize the influence of arbitrary artefacts in the training set. Then I can use the
-predicted probability of accuracy in an individual volume to infer, What precision or recall
-would I likely get *if* I cut the whole corpus at this probability threshold, discarding
-all volumes predicted to be less reliable?
+predicted probability of accuracy in an individual volume to infer, What precision or recall would I likely get *if* I cut the whole corpus at this probability threshold, discarding all volumes predicted to be less reliable?
 
-The important scripts here are logisticmodel.py and smooth.R. These generate a meta-model characterizing our confidence in the predictions made about volumes, which is used to create metadata that accompanies the predictions for each volume.
+The important scripts here are logisticconfidence.py (which creates the models), smooth.R, which smooths calibration curves, and applyconfidence.py, which applies the models and calibration curves to generate the final json files.
 
 Older scripts (logitconfidence and modelconfidence.py) represent discarded branches that used different modeling strategies. A straightforward logistic regression on binarized data turned out to work best.
