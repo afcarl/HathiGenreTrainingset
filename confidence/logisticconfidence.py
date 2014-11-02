@@ -1,7 +1,38 @@
-# modelconfidence.py
+# logisticconfidence.py
+# By Ted Underwood, October 2014. Based on modelconfidence.py, which was a
+# first draft that used logistic regression in a weird multiclass way,
+# by accident.
 
 # Uses internal evidence in page-level predictions, plus metadata, to produce
 # a model of accuracy for these predictions.
+
+# We're generating two kinds of predictions. The estimate of "overall" accuracy
+# is based on, and attempts to predict, the overall number of pages correctly predicted
+# in any given volume. We also produce genre-specific predictions for drama, fiction,
+# and poetry, which attempt to predict the proportion of pages predicted to be genre X
+# that are correctly identified. (Actually, technically all of these predictions are based
+# on models that attempt to predict the number of *words* rather than the sheer number
+# of pages correctly identified.)
+
+# The way we do it, technically, is odd. Instead of training a model that directly
+# predicts accuracy, we train logistic models that estimate the probability
+# of a binary threshold -- i.e., what's the *probability* that the pages in this volume are
+# more than 95% correctly identified by genre?
+
+# For reasons that I do not pretend to fully understand, this turned out more accurate than a lot of
+# other possible modeling strategies. (I think the basic reason is that the function we're
+# dealing with here is nonlinear.) Anyway, this approach worked well, even when cross-validated,
+# and some others didn't.
+
+# Of course, what users really want to know is, what threshold should I set if I want to
+# ensure that the corpus I'm getting has a certain level of precision? I've calculated
+# that in an imperfect, ad-hoc way, by measuring the recall and precision stats for corpora
+# created by thresholding my training corpus at different probability levels. This gives me
+# predicted precision and recall curves, which I also smoothed with lowess regression to
+# minimize the influence of arbitrary artefacts in the training set. Then I can use the
+# predicted probability of accuracy in an individual volume to infer, What precision or recall
+# would I likely get *if* I cut the whole corpus at this probability threshold, discarding
+# all volumes predicted to be less reliable?
 
 import json
 import os, sys
