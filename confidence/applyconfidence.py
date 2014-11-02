@@ -44,6 +44,10 @@ from scipy.stats.stats import pearsonr
 import pickle, csv
 
 def intpart(afloat):
+    ''' Given a float between 0 and 1, returns an index between 0 and 99.
+    We use this to index into precision and recall curves that were calculated
+    with thresholds varying through range(0, 1, 0.01).
+    '''
     idx = (int(afloat*100))
     if idx < 0:
         idx = 0
@@ -52,6 +56,10 @@ def intpart(afloat):
     return idx
 
 def calibrate(probability, curveset):
+    ''' Simply returns the corpus precision and recall estimates appropriate
+    for a given volume probability.
+    '''
+
     idx = intpart(probability)
     precision = curveset['precision'][idx]
     recall = curveset['recall'][idx]
@@ -84,6 +92,9 @@ def sequence_to_counts(genresequence):
     return genrecounts, maxgenre
 
 def count_flips(sequence):
+    ''' Volumes that go back and forth a lot between genres are less reliable than
+    those with a more stable sequence. So, we count flips.
+    '''
     numflips = 0
     prevgenre = ""
     for genre in sequence:
@@ -115,6 +126,8 @@ def normalizearray(featurearray):
 def normalizeformodel(featurearray, modeldict):
     '''Normalizes an array by centering on means and
     scaling by standard deviations associated with the given model.
+    This version of the function is designed to operate, actually, on
+    a one-dimensional array for a single volume.
     '''
 
     numfeatures = len(featurearray)
@@ -129,6 +142,9 @@ def normalizeformodel(featurearray, modeldict):
     return featurearray
 
 class Prediction:
+    ''' Holds information about a single volume, or technically about the
+    page-level genre predictions we have made for the volume.
+    '''
 
     def __init__(self, filepath):
         with open(filepath, encoding='utf-8') as f:
@@ -177,6 +193,10 @@ class Prediction:
         self.nonmetaflag = False
 
     def getfeatures(self):
+        ''' Returns features used for an overall accuracy prediction. There are more of
+        these (13) than we use for genre-specific predictions. See logisticconfidence.py
+        for more information about features.
+        '''
 
         features = np.zeros(13)
 
@@ -266,48 +286,22 @@ class Prediction:
 
         return features
 
-    def genreaccuracy(self, checkgenre, correctgenres):
-        truepositives = 0
-        falsepositives = 0
-
-        for idx, genre in enumerate(self.smoothPredictions):
-            if genre == checkgenre:
-
-                if correctgenres[idx] == checkgenre:
-                    truepositives += 1
-                else:
-                    falsepositives += 1
-
-        if (truepositives + falsepositives) > 0:
-            precision = truepositives / (truepositives + falsepositives)
-        else:
-            precision = 1000
-            # which we shall agree is a signal that this is meaningless
-
-        return precision
-
-    def matchvector(self, correctgenres):
-        assert len(correctgenres) == len(self.smoothPredictions)
-        matches = list()
-        for idx, genre in enumerate(self.smoothPredictions):
-            if correctgenres[idx] == genre:
-                matches.append(1)
-            elif correctgenres[idx] == 'bio' and genre == 'non':
-                matches.append(1)
-            elif correctgenres[idx] == 'non' and genre == 'bio':
-                matches.append(1)
-            else:
-                matches.append(0)
-
-        return matches
-
     def getpredictions(self):
+        ''' A getter function that transforms a list of page predictions into a dictionary. It's
+        debatable whether we should be representing pages as a dictionary, since our sequencing logic
+        not in fact allow skipped pages! But I'm doing it this way because it will be more flexible
+        in the long run, in case something happens that I can't anticipate.
+        '''
         pagedict = dict()
         for idx, genre in enumerate(self.smoothPredictions):
             pagedict[idx] = genre
         return pagedict
 
     def getmetadata(self):
+        ''' Basically just a getter function for metadata in a Prediction object. Only thing
+        interesting is that it filters out certain genre tags known to be unreliable or convey
+        little information.
+        '''
         metadict = dict()
         metadict['htid'] = self.dirtyid
         metadict['author'] = self.author
@@ -322,7 +316,7 @@ class Prediction:
             if genre == "ContainsBiogMaterial":
                 continue
 
-            # In my experience, none of those tags are reliable in my Hathi dataset.
+            # In my experience, none of those tags are informative in my Hathi dataset.
 
             genrelist.append(genre.lower())
 
