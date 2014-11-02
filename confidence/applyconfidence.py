@@ -25,7 +25,7 @@ def calibrate(probability, curveset):
     idx = intpart(probability)
     precision = curveset['precision'][idx]
     recall = curveset['recall'][idx]
-    return str(idx/100), precision, recall
+    return idx/100, precision, recall
 
 def sequence_to_counts(genresequence):
     '''Converts a sequence of page-level predictions to
@@ -121,6 +121,7 @@ class Prediction:
 
         if 'bio' in self.genrecounts and self.genrecounts['bio'] > (self.pagelen / 2):
             self.bioflag = True
+            print("BIO: " + self.dirtyid)
         else:
             self.bioflag = False
 
@@ -350,13 +351,10 @@ with open(calipath, encoding = 'utf-8') as f:
     next(reader, None)
     for row in reader:
         for idx, genre in enumerate(genrestocalibrate):
-            calibration[genre]['precision'].append(row[idx * 2])
-            calibration[genre]['recall'].append(row[(idx * 2) + 1])
+            calibration[genre]['precision'].append(float(row[idx * 2]))
+            calibration[genre]['recall'].append(float(row[(idx * 2) + 1]))
 
 outputdir = args[3]
-
-TOL = 0.1
-THRESH = 0.80
 
 #metadatapath = '/projects/ichass/usesofscale/hathimeta/MergedMonographs.tsv'
 metadatapath = '/Volumes/TARDIS/work/metadata/MergedMonographs.tsv'
@@ -368,6 +366,7 @@ for sourcedir in [sourcedirlist]:
 
     for filename in predicts:
         cleanid = utils.pairtreelabel(filename.replace('.predict', ''))
+        fileid = filename.replace('.predict', '')
         filepath = os.path.join(sourcedir, filename)
 
         try:
@@ -402,16 +401,16 @@ for sourcedir in [sourcedirlist]:
         jsontemplate['page_genres'] = predicted.getpredictions()
         jsontemplate['hathi_metadata'] = predicted.getmetadata()
         jsontemplate['added_metadata'] = dict()
-        jsontemplate['added_metadata']['totalpages'] = str(predicted.pagelen)
-        jsontemplate['added_metadata']['maxgenre'] = str(predicted.maxgenre)
-        jsontemplate['added_metadata']['genre_counts'] = str(predicted.genrecounts)
+        jsontemplate['added_metadata']['totalpages'] = predicted.pagelen
+        jsontemplate['added_metadata']['maxgenre'] = predicted.maxgenre
+        jsontemplate['added_metadata']['genre_counts'] = predicted.genrecounts
 
         overallprob, overallprecision, overallrecall = calibrate(overall95proba, calibration['overall'])
 
         overallaccuracy = dict()
-        overallaccuracy['prob_95acc'] = overallprob
-        overallaccuracy['cut_here_precision'] = overallprecision
-        overallaccuracy['cut_here_recall'] = overallrecall
+        overallaccuracy['prob>95acc'] = overallprob
+        overallaccuracy['precision@prob'] = overallprecision
+        overallaccuracy['recall@prob'] = overallrecall
 
         jsontemplate['volume_accuracy'] = overallaccuracy
 
@@ -422,11 +421,11 @@ for sourcedir in [sourcedirlist]:
                 gprob, gprecision, grecall = calibrate(genreprobs[genre], calibration[genre])
                 name = fullnames[genre]
                 newdict = dict()
-                newdict['prob_80acc'] = gprob
-                newdict['pages_' + name] = gpages
-                newdict['pct_' + name] = gpercent
-                newdict['cut_here_precision'] = gprecision
-                newdict['cut_here_recall'] = grecall
+                newdict['prob_' + genre + '>80precise'] = gprob
+                newdict['pages_' + genre] = gpages
+                newdict['pct_' + genre] = gpercent
+                newdict[genre+ '_precision@prob'] = gprecision
+                newdict[genre + '_recall@prob'] = grecall
                 jsontemplate[name] = newdict
 
         prefix = filename.split('.')[0]
@@ -435,7 +434,7 @@ for sourcedir in [sourcedirlist]:
         if not os.path.isdir(subdirectory):
             os.mkdir(subdirectory)
 
-        outpath = os.path.join(subdirectory, filename + ".json")
+        outpath = os.path.join(subdirectory, fileid + ".json")
         with open(outpath, mode = 'w', encoding = 'utf-8') as f:
             f.write(json.dumps(jsontemplate, sort_keys = True))
 
