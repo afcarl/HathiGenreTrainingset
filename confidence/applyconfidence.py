@@ -328,7 +328,12 @@ class Prediction:
 
 args = sys.argv
 
-sourcedirlist = args[1]
+sourcedirfile = args[1]
+with open(sourcedirfile, encoding = 'utf-8') as f:
+    filelines = f.readlines()
+
+directorylist = [x.strip() for x in filelines]
+
 modeldir = args[2]
 
 genrestocheck = ['fic', 'poe', 'dra']
@@ -380,11 +385,13 @@ with open(calipath, encoding = 'utf-8') as f:
 
 outputdir = args[3]
 
-#metadatapath = '/projects/ichass/usesofscale/hathimeta/MergedMonographs.tsv'
-metadatapath = '/Volumes/TARDIS/work/metadata/MergedMonographs.tsv'
+metadatapath = '/projects/ichass/usesofscale/hathimeta/MergedMonographs.tsv'
+# metadatapath = '/Volumes/TARDIS/work/metadata/MergedMonographs.tsv'
+# if you run it locally
+
 rows, columns, table = utils.readtsv(metadatapath)
 
-for sourcedir in [sourcedirlist]:
+for sourcedir in directorylist:
     predicts = os.listdir(sourcedir)
     predicts = [x for x in predicts if not x.startswith('.')]
 
