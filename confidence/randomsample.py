@@ -10,7 +10,7 @@
 # But just to make things a little trickier, we want to stratify this by century.
 # i.e, we want 100 randomly selected pages from each century.
 
-import csv
+import os, csv, json
 from random import randint
 import SonicScrewdriver as utils
 
@@ -98,8 +98,51 @@ for century, voltuples in centuries.items():
 
         date, author, title, genrecounts, htid = voltuples[volindex]
 
-        pagecenturies[century].append((htid, pgnuminvol))
+        pagecenturies[century].append((htid, date, pgnuminvol))
         print(str(date) + ' || ' + author + ' || ' + title + ' || ' + str(pgnuminvol))
+
+centurypaths = {'18c': '18cfic', '19c': '19cfic', '20c': '20cPre1923fic'}
+rootpath = '/Volumes/TARDIS/maps/fiction/'
+
+totalgetlist = list()
+
+for century, pagelist in pagecenturies.items():
+    directory = os.path.join(rootpath, centurypaths[century])
+
+    for volume, date, pgnum in pagelist:
+        volpath = os.path.join(directory, volume + '.json')
+        with open(volpath, encoding = 'utf-8') as f:
+            jobj = json.loads(f.read())
+
+        totalpages = jobj['added_metadata']['totalpages']
+        pagesingenre = list()
+        # We need to construct a list of all the pages that belong to the
+        # target genre in this volume, with
+        # the value of each element being a page number in the larger volume.
+        thepagedict = jobj['page_genres']
+        for i in range(totalpages):
+            thisgenre = thepagedict[str(i)]
+            if thisgenre == 'fic':
+                pagesingenre.append(i)
+
+        if pgnum >= len(pagesingenre):
+            print("Anomaly! We've selected a page number larger than the number")
+            print("of targetable pages in this volume.")
+        else:
+            pageseqinvol = pagesingenre[pgnum]
+            totalgetlist.append((volume, date, pageseqinvol))
+
+outpath = os.path.join
+with open('/Volumes/TARDIS/maps/fiction/selectedpages.csv', mode='w', encoding = 'utf-8') as f:
+    writer = csv.writer(f)
+    for vol, date, page in totalgetlist:
+        writer.writerow([vol, date, page])
+
+
+
+
+
+
 
 
 
